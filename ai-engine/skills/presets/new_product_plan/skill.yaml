@@ -1,0 +1,130 @@
+skill_id: new_product_plan
+name: 新品开发方案
+description: >
+  基于参考款链接或图片，自动完成市场调研、卖点提炼、改款方向建议，
+  输出一份完整的新品开发方案文档。
+version: 2
+
+trigger_phrases:
+  - 新品开发
+  - 新品方案
+  - 帮我看看这个款
+  - 做一个新品开发方案
+  - 选品分析
+  - 这个品能不能做
+  - 帮我分析这个产品
+
+system_prompt: >
+  你是一个资深的电商选品专家和产品经理，帮助中小企业老板做新品开发决策。
+  你需要基于用户提供的信息和企业已有的资产数据，逐步完成分析。
+  分析要具体、数据化，避免泛泛而谈，每个结论都要有依据。
+  回答要简洁有重点，不要太长。
+  如果有企业资产数据，要参考其中的产品、客户、偏好等信息来优化建议。
+
+# ========== 引导式信息收集 ==========
+intake:
+  - question_id: category
+    text: "你的店铺主要做什么品类？"
+    options: ["服装鞋帽", "家居日用", "3C数码", "美妆个护", "食品", "母婴", "户外运动"]
+    allow_free_input: true
+
+  - question_id: reference
+    text: "有参考款的链接、图片或者名称吗？没有的话，描述一下你想做的产品也行。"
+    allow_free_input: true
+
+  - question_id: focus
+    text: "做这个品你最关注什么？（可多选）"
+    options: ["能不能赚钱（利润空间）", "好不好卖（市场需求）", "竞争大不大", "能不能做出差异化", "供应链难度"]
+    allow_multiple: true
+
+  - question_id: budget
+    text: "你的预算范围和目标客单价大概是？"
+    options: ["低端（50元以下）", "中端（50-200元）", "中高端（200-500元）", "高端（500元以上）", "还没想好"]
+    allow_free_input: true
+
+# ========== 分步执行（带确认点） ==========
+steps:
+  - step_id: market_research
+    name: 市场调研与竞品分析
+    description: 分析参考款所在品类的市场情况
+    checkpoint: true
+    checkpoint_prompt: "市场调研完成了，你看下这个分析：有什么需要补充或者调整的吗？没问题的话我继续分析痛点。"
+    prompt_template: |
+      用户想基于以下信息开发新品：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请完成市场调研分析（简洁有重点）：
+      1. 品类市场概况（市场规模、增长趋势）
+      2. 主要竞品（3个，含价格、月销量估算、核心卖点）
+      3. 价格带分布
+      4. 机会点判断
+    output_format: markdown
+
+  - step_id: pain_points
+    name: 差评痛点挖掘
+    description: 分析同类产品的买家差评，找改进机会
+    checkpoint: true
+    checkpoint_prompt: "痛点分析好了。你在实际经营中有遇到客户反馈的其他痛点吗？告诉我可以补充进去。没有的话我继续。"
+    prompt_template: |
+      用户信息：
+      {collected_info}
+
+      前面的市场调研结果：
+      {previous_results}
+
+      请分析该品类产品的差评痛点（简洁实用）：
+      1. Top 5 差评痛点（每条附频率估算和严重程度）
+      2. 哪些痛点竞品普遍没解决（这是机会）
+      3. 改进优先级排序
+    output_format: markdown
+
+  - step_id: selling_points
+    name: 卖点提炼与定位
+    description: 基于分析结果提炼核心卖点
+    prompt_template: |
+      用户信息：
+      {collected_info}
+
+      前面的分析结果：
+      {previous_results}
+
+      请提炼新品的核心卖点（精炼有力）：
+      1. 主打卖点（1个）
+      2. 辅助卖点（2-3个）
+      3. 一句话产品标题建议
+      4. 与竞品的对比优势（表格形式）
+    output_format: markdown
+
+  - step_id: action_plan
+    name: 改款方向与行动计划
+    description: 给出可落地的改款建议和下一步计划
+    checkpoint: true
+    checkpoint_prompt: "方案出来了。你觉得哪个方向最靠谱？我可以帮你细化，或者你想调整方向。"
+    prompt_template: |
+      用户信息：
+      {collected_info}
+
+      完整分析结果：
+      {previous_results}
+
+      请给出改款方向和行动计划：
+      1. 推荐改款方向（2-3个，每个附可行性评估）
+      2. 成本预估和建议零售价
+      3. 下一步行动清单（具体的 todo，比如找供应商、打样等）
+    output_format: markdown
+
+capture_prompt: >
+  这次新品开发分析已经完成了。你在过程中提供的品类偏好、关注重点、预算范围等信息
+  我都记住了。下次你再说"帮我看看这个款"，我会直接按照你的偏好来分析，不用再问一遍。
+  要不要把这个流程保存为你的专属选品 Skill？
+
+output_template: |
+  📦 **新品开发方案** 已完成
+
+  你可以：
+  - 对任何部分追问或调整
+  - 换一个参考款再跑一次
+  - 把这个流程保存为你的专属 Skill

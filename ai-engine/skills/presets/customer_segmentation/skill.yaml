@@ -1,0 +1,95 @@
+skill_id: customer_segmentation
+name: 客户分群运营
+description: >
+  基于客户购买行为和特征进行分群，针对不同群体给出差异化运营策略，
+  提升复购率和客户生命周期价值。
+version: 1
+
+trigger_phrases:
+  - 客户分群
+  - 客户分析
+  - 客户画像
+  - 复购分析
+  - 老客户运营
+  - 客户分层
+  - 客户价值分析
+
+system_prompt: >
+  你是一个客户运营专家，擅长基于 RFM 模型和客户行为数据做分群分析。
+  分析要具体可操作，每个客户群都要给出明确的运营动作。
+  如果有企业资产数据（客户、产品等），要结合实际数据分析。
+  如果数据暂不可用，用模拟数据演示并标注【模拟数据】。
+
+intake:
+  - question_id: customer_scale
+    text: "你的店铺大概有多少客户？月均订单量多少？"
+    options: ["小规模（<1000客户）", "中规模（1000-10000）", "大规模（10000+）", "不太清楚"]
+    allow_free_input: true
+
+  - question_id: goal
+    text: "这次分析主要想解决什么问题？"
+    options: ["提升复购率", "激活沉睡客户", "找高价值客户做VIP", "新客转化", "全面了解客户结构"]
+    allow_multiple: true
+
+  - question_id: channels
+    text: "你的客户主要来自哪些渠道？"
+    options: ["淘天搜索", "直通车/引力魔方", "直播间", "社群/私域", "拼多多", "1688批发", "线下"]
+    allow_multiple: true
+
+steps:
+  - step_id: rfm_analysis
+    name: RFM 客户分群
+    description: 基于最近购买、购买频次、消费金额三维度分群
+    checkpoint: true
+    checkpoint_prompt: "客户分群做好了。你觉得这个分群和你的实际感受符合吗？有没有需要调整分群标准的？"
+    prompt_template: |
+      用户的客户运营需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请完成 RFM 客户分群分析（如无真实数据用模拟数据标注）：
+      1. RFM 分群结果表（群名称、人数占比、特征描述）
+         建议分群：重要价值客户、重要发展客户、重要保持客户、重要挽留客户、
+         一般价值客户、一般发展客户、一般保持客户、流失客户
+      2. 各群体关键指标（客单价、购买频次、最近购买时间）
+      3. 客户价值金字塔（图示）
+    output_format: markdown
+
+  - step_id: segment_strategy
+    name: 分群运营策略
+    description: 针对每个客户群制定运营方案
+    checkpoint: true
+    checkpoint_prompt: "运营策略出来了。有没有你之前尝试过效果好或效果差的方法？告诉我可以优化建议。"
+    prompt_template: |
+      用户需求：{collected_info}
+      客户分群结果：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请为每个客户群制定运营策略（要具体可执行）：
+      每个群体包含：
+      1. 运营目标（一句话）
+      2. 触达方式（短信/旺旺/私域/推送）
+      3. 内容策略（发什么、怎么说）
+      4. 激励方案（优惠券/赠品/积分/专属价）
+      5. 预期效果和 ROI 估算
+    output_format: markdown
+
+  - step_id: action_calendar
+    name: 执行日历与优先级
+    description: 输出可落地的执行计划
+    prompt_template: |
+      用户需求：{collected_info}
+      完整分析：{previous_results}
+
+      请输出执行计划：
+      1. 本周必做 Top 3（最快见效的动作）
+      2. 月度运营日历（每周重点任务）
+      3. 效果监控指标（看什么数、多久看一次）
+      4. 预期整体效果（复购率提升、GMV 增长预估）
+    output_format: markdown
+
+capture_prompt: >
+  客户分析完成了。你的客户规模、运营目标、渠道偏好我都记住了。
+  下次说"客户分析"我直接按你的情况来。要保存这些偏好吗？

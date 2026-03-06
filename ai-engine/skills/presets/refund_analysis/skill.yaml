@@ -1,0 +1,93 @@
+skill_id: refund_analysis
+name: 退款退货分析
+description: >
+  分析退款退货数据，找出高频退款原因、问题商品和改进方向，
+  帮助降低退款率、提升客户满意度。
+version: 1
+
+trigger_phrases:
+  - 退款分析
+  - 退货分析
+  - 退款率怎么降
+  - 看看退款情况
+  - 退货原因
+  - 售后分析
+  - 退款太多了
+
+system_prompt: >
+  你是一个电商售后数据分析专家，帮助中小企业分析退款退货问题。
+  分析要基于数据，给出可操作的改进建议。
+  如果有企业资产数据，要结合实际产品和客户数据分析。
+  如果数据暂不可用，用合理的模拟数据演示并标注【模拟数据】。
+
+intake:
+  - question_id: time_range
+    text: "你想分析哪个时间段的退款数据？"
+    options: ["最近7天", "最近30天", "最近3个月", "自定义时间段"]
+    allow_free_input: true
+
+  - question_id: platforms
+    text: "分析哪些平台的数据？"
+    options: ["全部平台", "淘天", "拼多多", "1688", "抖音", "快手"]
+    allow_multiple: true
+
+  - question_id: concern
+    text: "你最关心退款的哪些方面？"
+    options: ["退款率趋势", "高频退款原因", "问题商品排查", "竞品退款率对比", "改进方案"]
+    allow_multiple: true
+
+steps:
+  - step_id: refund_overview
+    name: 退款数据概览
+    description: 统计退款整体情况
+    checkpoint: true
+    checkpoint_prompt: "退款概览数据出来了。有没有哪个数字和你感知差异比较大？或者有特别想深挖的方向？"
+    prompt_template: |
+      用户要分析退款退货数据：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请生成退款数据概览（如无真实数据，用合理模拟数据并标注）：
+      1. 退款概况表（退款单数、退款金额、退款率，含同比环比）
+      2. 退款原因 Top 5（每条附占比和趋势）
+      3. 退款类型分布（仅退款 vs 退货退款 vs 换货）
+      4. 退款时效分布（下单多久后退款）
+    output_format: markdown
+
+  - step_id: problem_products
+    name: 问题商品排查
+    description: 找出退款率最高的商品
+    checkpoint: true
+    checkpoint_prompt: "问题商品找到了。这些商品里有你已经知道问题的吗？有什么补充信息可以告诉我。"
+    prompt_template: |
+      用户信息：{collected_info}
+      前面的退款概览：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请排查问题商品：
+      1. 退款率 Top 10 商品（表格：商品名、销量、退款数、退款率、主要原因）
+      2. 退款金额 Top 10 商品
+      3. 异常商品预警（退款率突增的商品）
+      4. 按品类汇总退款率
+    output_format: markdown
+
+  - step_id: improvement_plan
+    name: 改进方案
+    description: 给出降低退款率的具体建议
+    prompt_template: |
+      用户信息：{collected_info}
+      完整分析结果：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请给出改进方案（按优先级排序，要具体可执行）：
+      1. 紧急处理（本周可做，立刻见效）
+      2. 短期优化（1-2周，系统性改善）
+      3. 长期策略（品控、供应链、服务体系）
+      4. 每条建议附预期效果（退款率可降多少）
+    output_format: markdown
+
+capture_prompt: >
+  退款分析完成了。你关注的平台、时间范围和分析重点我都记住了。
+  下次你说"看看退款情况"，我直接按这个配置分析。要保存吗？

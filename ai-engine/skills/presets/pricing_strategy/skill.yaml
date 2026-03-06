@@ -1,0 +1,97 @@
+skill_id: pricing_strategy
+name: 智能定价策略
+description: >
+  分析竞品价格、成本结构和市场定位，给出科学的定价方案，
+  帮助找到利润和销量的最佳平衡点。
+version: 1
+
+trigger_phrases:
+  - 定价策略
+  - 怎么定价
+  - 价格怎么定
+  - 调价分析
+  - 价格优化
+  - 利润分析
+  - 竞品价格
+
+system_prompt: >
+  你是一个电商定价策略专家，擅长基于成本结构、竞品分析和市场定位制定定价方案。
+  分析要有数据支撑，给出的方案要考虑不同平台的定价差异。
+  如果有企业资产数据（产品、成本等），要结合实际数据分析。
+  如果数据暂不可用，用合理模拟数据演示并标注【模拟数据】。
+
+intake:
+  - question_id: product
+    text: "要分析哪个产品或品类的定价？"
+    allow_free_input: true
+
+  - question_id: cost_info
+    text: "产品成本大概是多少？（包括生产、物流、包装等）"
+    options: ["10元以下", "10-30元", "30-50元", "50-100元", "100元以上", "暂时不确定"]
+    allow_free_input: true
+
+  - question_id: current_price
+    text: "现在的售价是多少？如果还没上架，你期望的价格区间是？"
+    allow_free_input: true
+
+  - question_id: pricing_goal
+    text: "定价主要考虑什么？"
+    options: ["利润最大化", "快速起量", "对标竞品", "清库存", "新品试探市场"]
+    allow_free_input: true
+
+steps:
+  - step_id: competitor_pricing
+    name: 竞品价格分析
+    description: 分析同品类竞品的定价策略
+    checkpoint: true
+    checkpoint_prompt: "竞品价格分析完了。有没有你特别关注的竞品或者想对标的店铺？可以告诉我补充分析。"
+    prompt_template: |
+      用户的定价需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请完成竞品价格分析（如无真实数据用模拟数据标注）：
+      1. 品类价格带分布（低/中/高端各占比，均价）
+      2. Top 10 竞品定价明细表（店铺、产品、价格、月销、评分）
+      3. 各平台价差对比（淘天 vs 拼多多 vs 1688）
+      4. 价格弹性初步判断
+    output_format: markdown
+
+  - step_id: cost_analysis
+    name: 成本与利润测算
+    description: 拆解成本结构，测算不同价格的利润
+    checkpoint: true
+    checkpoint_prompt: "利润测算做好了。成本数据和你实际情况差多少？可以告诉我实际数字，我帮你重新算。"
+    prompt_template: |
+      用户信息：{collected_info}
+      竞品价格分析：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请完成成本与利润测算：
+      1. 成本结构拆解表（生产/物流/包装/平台扣点/推广/其他）
+      2. 不同价格点的利润测算表（售价 → 毛利 → 净利 → 毛利率）
+      3. 盈亏平衡点分析（至少卖多少单不亏）
+      4. 不同促销力度的利润影响（满减/折扣/赠品）
+    output_format: markdown
+
+  - step_id: pricing_plan
+    name: 定价方案建议
+    description: 给出最终定价建议
+    prompt_template: |
+      用户信息：{collected_info}
+      完整分析：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请给出定价方案（按优先级排序）：
+      1. 推荐方案（建议零售价 + 定价理由）
+      2. 保守方案和激进方案各一个
+      3. 各平台差异化定价建议
+      4. 促销节奏建议（什么时候做活动、力度多大）
+      5. 价格调整预警线（什么情况需要调价）
+    output_format: markdown
+
+capture_prompt: >
+  定价分析完成了。你的产品信息、成本结构、定价偏好我都记住了。
+  下次分析同类产品可以直接复用。要保存这些数据吗？
