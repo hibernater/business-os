@@ -33,11 +33,15 @@ public class AiEngineClient {
     /**
      * 透传 AI Engine 返回的所有 NDJSON 事件（intent / skill_start / step_start / text_delta / step_done / skill_done / done）
      */
-    public Flux<String> streamChatRaw(String message, String conversationId, List<Map<String, String>> history) {
+    public Flux<String> streamChatRaw(String message, String conversationId, List<Map<String, String>> history, boolean autoExecute, String taskId) {
         Map<String, Object> body = new HashMap<>();
         body.put("message", message);
         body.put("conversation_id", conversationId);
         body.put("history", history != null ? history : List.of());
+        body.put("auto_execute", autoExecute);
+        if (taskId != null && !taskId.isBlank()) {
+            body.put("task_id", taskId);
+        }
 
         return webClient.post()
                 .uri("/api/chat/stream")

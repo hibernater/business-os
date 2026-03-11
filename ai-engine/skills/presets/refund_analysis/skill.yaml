@@ -14,6 +14,12 @@ trigger_phrases:
   - 售后分析
   - 退款太多了
 
+twin_dimensions:
+  - dimension: operation
+    extract_keys: [refund_rate, refund_amount, top_refund_reasons, problem_products_count, improvement_priority]
+  - dimension: product
+    extract_keys: [problem_products, quality_issues]
+
 system_prompt: >
   你是一个电商售后数据分析专家，帮助中小企业分析退款退货问题。
   分析要基于数据，给出可操作的改进建议。

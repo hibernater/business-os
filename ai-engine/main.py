@@ -35,6 +35,9 @@ class ChatRequest(BaseModel):
     message: str
     conversation_id: str = ""
     history: list[HistoryItem] = []
+    auto_execute: bool = False
+    enterprise_id: str = ""
+    task_id: str = ""
 
 
 def _get_agent():
@@ -147,7 +150,7 @@ async def auto_run_skill(req: dict):
     """被调度器调用，自动模式执行 Skill"""
     from runner.skill_loader import load_all_preset_skills
     from runner.skill_runner import SkillRunner
-    from runner.enterprise_context import fetch_enterprise_context
+    from runner.task_lifecycle import create_task
 
     skill_id = req.get("skill_id", "")
     enterprise_id = req.get("enterprise_id", "")
@@ -158,15 +161,18 @@ async def auto_run_skill(req: dict):
 
     skill = skills[skill_id]
 
-    ent_context = {}
-    try:
-        ent_context = await fetch_enterprise_context(enterprise_id, skill_id)
-    except Exception:
-        pass
-
     agent = get_agent()
     if not agent:
         return {"status": "error", "message": "No LLM available"}
+
+    task_id = await create_task(
+        enterprise_id=enterprise_id,
+        skill_id=skill_id,
+        skill_name=skill.name,
+        total_steps=skill.step_count,
+        trigger_type="scheduled",
+        schedule_id=req.get("schedule_id"),
+    )
 
     runner = SkillRunner(agent.llm)
     results = []
@@ -175,41 +181,12 @@ async def auto_run_skill(req: dict):
         user_input=f"[定时自动执行] {skill.name}",
         enterprise_id=enterprise_id,
         conversation_id="",
+        auto_execute=True,
+        task_id=task_id or "",
     ):
         results.append(event)
-        if event.get("type") == "waiting_input":
-            execution_id = event.get("execution_id", "")
-            if execution_id:
-                async for ev in runner.continue_execution(execution_id, "确认执行"):
-                    results.append(ev)
-                    if ev.get("type") == "waiting_input" and ev.get("phase") == "executing":
-                        async for ev2 in runner.continue_execution(execution_id, "继续"):
-                            results.append(ev2)
 
-    full_output = "".join(
-        e.get("content", "") for e in results if e.get("type") == "text_delta"
-    )
-
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.post(
-                f"{JAVA_BACKEND_URL}/api/internal/memory/save",
-                json={
-                    "enterpriseId": enterprise_id,
-                    "skillId": skill_id,
-                    "memoryType": "execution_record",
-                    "data": {
-                        "skill_name": skill.name,
-                        "trigger": "scheduled",
-                        "output_preview": full_output[:500],
-                        "step_count": skill.step_count,
-                    },
-                },
-            )
-    except Exception:
-        pass
-
-    return {"status": "ok", "events_count": len(results)}
+    return {"status": "ok", "events_count": len(results), "task_id": task_id}
 
 
 class SkillCreateRequest(BaseModel):
@@ -260,7 +237,10 @@ async def chat_stream(req: ChatRequest):
         if agent:
             from llm.base import ChatMessage
             history = [ChatMessage(role=h.role, content=h.content) for h in req.history]
-            async for event in agent.chat_stream(req.message, req.conversation_id, history):
+            async for event in agent.chat_stream(
+                req.message, req.conversation_id, history,
+                auto_execute=req.auto_execute, task_id=req.task_id,
+            ):
                 yield json.dumps(event, ensure_ascii=False) + "\n"
         else:
             async for event in _mock_chat_stream(req):
@@ -312,6 +292,7 @@ async def _mock_chat_stream(req: ChatRequest):
         runner = MockSkillRunner()
         async for event in runner.start_execution(
             skill=skill, user_input=req.message, conversation_id=req.conversation_id,
+            auto_execute=req.auto_execute, task_id=req.task_id,
         ):
             yield event
 

@@ -14,6 +14,10 @@ trigger_phrases:
   - 客户分层
   - 客户价值分析
 
+twin_dimensions:
+  - dimension: customer
+    extract_keys: [total_customers, segments_count, vip_ratio, churn_rate, repeat_purchase_rate, top_segment]
+
 system_prompt: >
   你是一个客户运营专家，擅长基于 RFM 模型和客户行为数据做分群分析。
   分析要具体可操作，每个客户群都要给出明确的运营动作。

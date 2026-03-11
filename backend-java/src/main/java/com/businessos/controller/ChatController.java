@@ -39,7 +39,7 @@ public class ChatController {
         String convId = conv.getId();
         StringBuilder fullResponse = new StringBuilder();
 
-        return chatService.streamResponseRaw(request.getMessage(), convId, history)
+        return chatService.streamResponseRaw(request.getMessage(), convId, history, request.isAutoExecute(), request.getTaskId())
                 .doOnNext(line -> {
                     String content = chatService.extractTextContent(line);
                     if (content != null) {
@@ -70,10 +70,16 @@ public class ChatController {
     public static class ChatRequest {
         private String message;
         private String conversationId;
+        private boolean autoExecute;
+        private String taskId;
 
         public String getMessage() { return message; }
         public void setMessage(String message) { this.message = message; }
         public String getConversationId() { return conversationId; }
         public void setConversationId(String conversationId) { this.conversationId = conversationId; }
+        public boolean isAutoExecute() { return autoExecute; }
+        public void setAutoExecute(boolean autoExecute) { this.autoExecute = autoExecute; }
+        public String getTaskId() { return taskId; }
+        public void setTaskId(String taskId) { this.taskId = taskId; }
     }
 }

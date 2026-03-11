@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LogIn } from "lucide-react";
+import { LogIn, Zap } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function LoginForm() {
@@ -15,20 +15,23 @@ export function LoginForm() {
     try {
       await login(username, password);
     } catch {
-      // Error is set in store, parent will show ChatLayout on success
+      // Error is set in store
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md">
-        <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-          <div className="mb-8 text-center">
-            <h1 className="text-2xl font-semibold text-gray-900">
-              商家OS - AI经营工作台
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50 px-4">
+      <div className="w-full max-w-[400px]">
+        <div className="rounded-2xl border border-gray-200/80 bg-white p-10 shadow-xl shadow-gray-200/40">
+          <div className="mb-10 flex flex-col items-center text-center">
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-200">
+              <Zap className="h-7 w-7 text-white" />
+            </div>
+            <h1 className="text-[24px] font-bold text-gray-900">
+              商家OS
             </h1>
-            <p className="mt-2 text-sm text-gray-500">
-              中小企业主的AI经营助手
+            <p className="mt-2 text-[14px] text-gray-500">
+              AI 驱动的中小企业经营工作台
             </p>
           </div>
 
@@ -36,7 +39,7 @@ export function LoginForm() {
             <div>
               <label
                 htmlFor="username"
-                className="mb-1.5 block text-sm font-medium text-gray-700"
+                className="mb-1.5 block text-[13px] font-medium text-gray-600"
               >
                 用户名
               </label>
@@ -45,7 +48,7 @@ export function LoginForm() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 transition-colors focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 text-[15px] text-gray-900 placeholder-gray-400 transition-all focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 placeholder="请输入用户名"
                 required
                 autoComplete="username"
@@ -55,7 +58,7 @@ export function LoginForm() {
             <div>
               <label
                 htmlFor="password"
-                className="mb-1.5 block text-sm font-medium text-gray-700"
+                className="mb-1.5 block text-[13px] font-medium text-gray-600"
               >
                 密码
               </label>
@@ -64,7 +67,7 @@ export function LoginForm() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 transition-colors focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 text-[15px] text-gray-900 placeholder-gray-400 transition-all focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 placeholder="请输入密码"
                 required
                 autoComplete="current-password"
@@ -72,7 +75,7 @@ export function LoginForm() {
             </div>
 
             {error && (
-              <div className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">
+              <div className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-600">
                 {error}
               </div>
             )}
@@ -80,16 +83,16 @@ export function LoginForm() {
             <button
               type="submit"
               disabled={isLoading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#2563eb] px-4 py-2.5 font-medium text-white transition-colors hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-blue-600 px-4 py-3 text-[15px] font-medium text-white transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/25 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <LogIn className="h-4 w-4" />
+              <LogIn className="h-4.5 w-4.5" />
               {isLoading ? "登录中..." : "登录"}
             </button>
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs text-gray-400">
-          登录即表示您同意使用本平台的服务
+        <p className="mt-8 text-center text-[12px] text-gray-400">
+          Works for you, grows with you
         </p>
       </div>
     </div>

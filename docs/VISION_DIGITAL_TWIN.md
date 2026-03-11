@@ -473,14 +473,46 @@ class SkillDependencyGraph:
 | 模块 | 设计目标 | 实现状态 |
 |------|---------|---------|
 | Automation Scheduler | 定时/事件/依赖编排 | ✅ 已实现定时调度（APScheduler），事件驱动预留 |
-| Enterprise Memory Bus | Skill结果回写孪生体 | ✅ 已实现（execution_record + preference 自动保存） |
-| Enterprise State | 五维状态模型 | ✅ 已建表 + API + 前端可视化 |
+| Enterprise Memory Bus | Skill结果回写孪生体 | ✅ 已实现（execution_record + preference + twin_updater） |
+| Enterprise State | 五维状态模型 | ✅ 已建表 + API + 前端可视化 + **Skill 自动回写** |
 | Decision Memory | 决策记忆 | ✅ 已建表（decision_record），基础回写已实现 |
 | Methodology Graph | Skill依赖图谱 | 🔲 预留（Skill DAG 编排待实现） |
-| 企业驾驶舱 | 数字孪生可视化 | ✅ 已实现（健康度 + 五维度 + 活跃度） |
+| 企业驾驶舱 | 数字孪生可视化 | ✅ 已实现（健康度 + 五维度 + 具体指标 + 飞轮说明） |
 | Skill 运行模式 | on-demand + scheduled + event | ✅ 手动 + 定时已实现，事件驱动预留 |
+| **数字孪生飞轮** | **Skill→提取→回写→可视化闭环** | **✅ 已实现** |
+| **任务管理系统** | **Skill/Task 分离 + 任务CRUD + 进度追踪** | **✅ 已实现** |
+| **twin_dimensions** | **Skill声明式回写哪些孪生维度** | **✅ 5个预装Skill均已声明** |
+| **auto_execute 模式** | **Skill静默执行，无需人工交互** | **✅ 已实现全链路传递** |
 | 下游触发 | Skill A → Skill B | 🔲 预留（depends_on 字段已在数据模型中） |
 | 主动洞察推送 | 异常检测 + 建议生成 | 🔲 通知基础设施已就绪（SSE），智能推送待实现 |
+
+### 数字孪生飞轮——已实现的数据流
+
+```
+Skill 定义 (YAML)                      执行完成后
+─────────────────                      ────────────────────────────────
+twin_dimensions:                       1. twin_updater.py 读取 twin_dimensions
+  - dimension: productState            2. 用 LLM 从执行输出中提取结构化数据
+    extract_keys:                         (回退到正则表达式)
+      - total_products                 3. POST /api/internal/twin/update
+      - recommendation_count              发送 {dimension → {key: value}}
+  - dimension: financialState          4. Java 合并到 enterprise_state
+    extract_keys:                         (支持 "+1" 计数器语法)
+      - average_cost                   5. 前端数字孪生面板刷新展示
+      - gross_margin
+```
+
+### 任务管理——已实现的功能
+
+| API | 方法 | 说明 |
+|-----|------|------|
+| `/api/tasks` | GET | 任务列表（支持 status、triggerType 筛选） |
+| `/api/tasks/{id}` | GET | 任务详情 |
+| `/api/tasks` | POST | 创建任务 |
+| `/api/tasks/{id}/cancel` | PUT | 取消任务 |
+| `/api/tasks/{id}` | DELETE | 删除任务 |
+| `/api/internal/tasks/create` | POST | AI Engine 创建任务（内部） |
+| `/api/internal/tasks/{id}/progress` | POST | AI Engine 更新进度（内部） |
 
 ---
 

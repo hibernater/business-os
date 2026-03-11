@@ -14,6 +14,10 @@ trigger_phrases:
   - 这个品能不能做
   - 帮我分析这个产品
 
+twin_dimensions:
+  - dimension: product
+    extract_keys: [market_size, competitor_count, price_range, opportunity_score, category, recommended_direction]
+
 system_prompt: >
   你是一个资深的电商选品专家和产品经理，帮助中小企业老板做新品开发决策。
   你需要基于用户提供的信息和企业已有的资产数据，逐步完成分析。

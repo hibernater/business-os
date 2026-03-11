@@ -40,6 +40,8 @@ class MainAgent:
         user_message: str,
         conversation_id: str = "",
         history: list[ChatMessage] | None = None,
+        auto_execute: bool = False,
+        task_id: str = "",
     ) -> AsyncIterator[dict]:
         """
         统一入口：
@@ -85,6 +87,8 @@ class MainAgent:
                 skill=skill,
                 user_input=user_message,
                 conversation_id=conversation_id,
+                auto_execute=auto_execute,
+                task_id=task_id,
             ):
                 yield event
 

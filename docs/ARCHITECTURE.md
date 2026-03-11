@@ -102,6 +102,7 @@ Phase 3: 平台持有企业运营全貌 → 企业数字孪生
 │  Controller 层:                                               │
 │    Auth │ Chat │ Skill │ Asset │ Schedule │ Marketplace       │
 │    Dashboard │ DigitalTwin │ Team │ Notification │ Execution  │
+│    Task │ Internal (任务生命周期 + 孪生回写)                   │
 │                                                               │
 │  Service 层:                                                  │
 │    ChatService │ AiEngineClient │ NotificationService(SSE)    │
@@ -117,6 +118,8 @@ Phase 3: 平台持有企业运营全貌 → 企业数字孪生
 │  Creator:   SkillCreator (对话式Skill生成)                    │
 │  Tools:     Registry + 5内置 + 5电商mock                      │
 │  Scheduler: APScheduler (Cron/间隔调度)                       │
+│  Twin:      TwinUpdater(结构化数据提取→回写孪生)               │
+│  Task:      TaskLifecycle(任务创建/进度/完成)                  │
 │  LLM:       通义千问(Qwen) via DashScope SDK                  │
 └──────────────────────────┬──────────────────────────────────┘
                            │
@@ -330,6 +333,11 @@ message             -- 对话消息
 skill               -- Skill 元数据（含 schedule_config 预留字段）
 enterprise_asset    -- 企业资产（商品/客户/供应商/文档/偏好/执行记录）
 
+-- 任务/工作流
+skill_execution     -- 任务执行记录（状态、进度、摘要、错误、耗时）
+                    -- trigger_type: manual/scheduled/event
+                    -- 每次 Skill 执行产生一条 Task 记录
+
 -- 数字孪生
 enterprise_state    -- 企业五维状态模型（product/customer/operation/team/financial）
 decision_record     -- 决策记忆
@@ -355,42 +363,81 @@ Python → Java 之间使用 NDJSON（Newline Delimited JSON）流式通信：
 | `skill_done` | Skill 执行完成（含 execution_record） |
 | `memory_save` | 偏好保存事件 |
 | `skill_created` | 新 Skill 创建完成 |
+| `twin_updated` | 数字孪生维度已更新 |
+| `task_created` | 任务已创建 |
+| `task_progress` | 任务进度更新 |
 | `done` | 流结束 |
 
 ---
 
-## 六、Skill 执行数据流
+## 六、Skill 执行数据流（含任务管理 + 孪生回写）
 
 ```
-用户点击 "执行 Skill"
+用户在 Skill 工作台点击 "执行"
        │
        ▼
-[前端] POST /api/chat/send {message, skillId}
+[前端] POST /api/tasks → 创建 Task 记录 (status=pending)
        │
        ▼
-[Java] ChatController → AiEngineClient (NDJSON 流)
+[前端] POST /api/chat/send {message, autoExecute, taskId}
        │
        ▼
-[Python] SkillRunner.start_execution()
+[Java] ChatController → AiEngineClient (NDJSON 流, 含 task_id)
        │
+       ▼
+[Python] SkillRunner.start_execution(task_id=...)
+       │
+       ├── 0. update_task_progress(status=running)
        ├── 1. fetch_enterprise_context() ← 从Java获取企业资产+偏好
-       ├── 2. INTAKE: 向用户提问收集信息
-       ├── 3. CONFIRM_PLAN: 展示执行计划，等待确认
-       ├── 4. EXECUTING: 逐步执行
+       ├── 2. INTAKE: auto_execute=true → 自动填充默认值
+       ├── 3. EXECUTING: 逐步执行
+       │      ├── 每步开始: update_task_progress(current_step=N)
        │      ├── 调用 Tool (如有)
        │      ├── 调用 LLM 生成分析
-       │      └── Checkpoint (如有) → 等待用户确认
-       ├── 5. CAPTURE: 提议保存偏好
-       └── 6. DONE: 发送 execution_record + skill_done
+       │      └── 每步失败: update_task_progress(status=failed, error=...)
+       ├── 4. CAPTURE → update_task_progress(status=completed, output_summary=...)
+       └── 5. 回写数字孪生:
               │
               ▼
-[Java] ChatService.handleSpecialEvent()
-       ├── 保存 execution_record 为 EnterpriseAsset
-       ├── 保存 preferences 为 EnterpriseAsset
-       └── 发送 SSE 通知
-              │
-              ▼
-[前端] 实时更新 UI + 通知铃铛
+       [Python] twin_updater.update_digital_twin()
+              ├── 根据 Skill.twin_dimensions 提取结构化数据
+              ├── 使用 LLM 或正则从执行输出中抽取指标
+              └── POST /api/internal/twin/update → 合并到 enterprise_state
+                     │
+                     ▼
+              [Java] InternalController.updateTwin()
+                     ├── 按维度合并数据到 enterprise_state
+                     └── 发送 twin_updated 通知
+                            │
+                            ▼
+              [前端] 数字孪生面板自动刷新
+
+同时：
+[前端] 任务管理面板每 10s 轮询 GET /api/tasks → 实时展示任务状态/进度
+```
+
+### 任务/工作流管理：Skill 与 Task 的关系
+
+```
+┌────────────────────┐         ┌────────────────────┐
+│  Skill（方法论模板） │  1───→N │  Task（执行实例）    │
+│                    │         │                    │
+│  - skill_id        │         │  - id              │
+│  - name            │         │  - skill_id (FK)   │
+│  - steps           │         │  - skill_name      │
+│  - twin_dimensions │         │  - trigger_type    │
+│  - schedule_config │         │  - status          │
+│                    │         │  - current_step    │
+│  存储: YAML + DB   │         │  - total_steps     │
+│  管理: Skill 工作台 │         │  - output_summary  │
+│                    │         │  - error_message   │
+│                    │         │  - started_at      │
+│                    │         │  - completed_at    │
+│                    │         │  - duration_ms     │
+│                    │         │                    │
+│                    │         │  存储: skill_execution│
+│                    │         │  管理: 任务管理页面  │
+└────────────────────┘         └────────────────────┘
 ```
 
 ---
@@ -403,13 +450,14 @@ P0 (核心循环)                P1 (产品深度)              P2 (产品广度
                                                                                               
 交互式Skill执行              5个预装Skill               实时通知推送               Skill市场
 对话式Skill创建              Tool系统(10个)             数据看板                   移动端适配
-企业上下文注入               文件上传                   电商平台对接               企业数字孪生
-执行历史+记忆持久化           Markdown导出               团队协作                   
-定时自动执行                                                                      
+企业上下文注入               文件上传                   电商平台对接               数字孪生仪表盘
+执行历史+记忆持久化           Markdown导出               团队协作                   ★ 数字孪生飞轮
+定时自动执行                                                                       ★ 任务/工作流管理
                                                                                               
 用户感知:                    用户感知:                  用户感知:                  用户感知:
-"AI按我的方式干活"            "Skill真正有用了"          "产品更完整了"             "系统比我还了解
-                                                                                  我的生意"
+"AI按我的方式干活"            "Skill真正有用了"          "产品更完整了"             "Skill执行自动
+                                                                                  积累经营数据，
+                                                                                  任务自转起来"
 ```
 
 ---
@@ -426,3 +474,7 @@ P0 (核心循环)                P1 (产品深度)              P2 (产品广度
 | Skill存储 | YAML定义 + PostgreSQL元数据 | 结构清晰、人可读、易版本控制 |
 | 网关策略 | 中间件链（不独立部署） | 初期团队小、用户少，避免过度工程化 |
 | 大模型 | 通义千问(主)，保留切换能力 | 中文能力强、成本可控、工厂方法模式易切换 |
+| Skill vs Task 分离 | Skill=方法论模板，Task=执行实例 | Skill 是"怎么做"，Task 是"做了一次"，概念清晰便于管理 |
+| 孪生数据提取 | LLM提取 + 正则回退 | 优先用 LLM 结构化输出，网络/配额不可用时回退到正则 |
+| twin_dimensions | 声明在 Skill YAML | 每个 Skill 自描述产出哪些维度数据，解耦提取逻辑 |
+| 内部 API | /api/internal/* 无鉴权 | Python→Java 内部通信专用，无需 JWT |

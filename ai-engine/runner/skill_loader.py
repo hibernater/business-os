@@ -2,7 +2,7 @@
 
 import yaml
 from pathlib import Path
-from runner.skill_schema import SkillDefinition, StepDefinition, ToolCall, IntakeQuestion
+from runner.skill_schema import SkillDefinition, StepDefinition, ToolCall, IntakeQuestion, TwinDimensionMapping
 
 SKILLS_DIR = Path(__file__).parent.parent / "skills" / "presets"
 
@@ -37,6 +37,13 @@ def load_skill_from_yaml(yaml_path: str | Path) -> SkillDefinition:
             checkpoint_prompt=s.get("checkpoint_prompt", ""),
         ))
 
+    twin_dims = []
+    for td in data.get("twin_dimensions", []):
+        twin_dims.append(TwinDimensionMapping(
+            dimension=td["dimension"],
+            extract_keys=td.get("extract_keys", []),
+        ))
+
     return SkillDefinition(
         skill_id=data["skill_id"],
         name=data["name"],
@@ -48,6 +55,7 @@ def load_skill_from_yaml(yaml_path: str | Path) -> SkillDefinition:
         output_template=data.get("output_template", ""),
         capture_prompt=data.get("capture_prompt", ""),
         version=data.get("version", 1),
+        twin_dimensions=twin_dims,
     )
 
 

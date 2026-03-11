@@ -126,11 +126,11 @@ CREATE INDEX idx_asset_type ON enterprise_asset(enterprise_id, asset_type);
 CREATE TABLE enterprise_state (
     id              VARCHAR(36) PRIMARY KEY,
     enterprise_id   VARCHAR(36) NOT NULL REFERENCES enterprise(id) UNIQUE,
-    product_state   JSONB DEFAULT '{}',
-    customer_state  JSONB DEFAULT '{}',
-    operation_state JSONB DEFAULT '{}',
-    team_state      JSONB DEFAULT '{}',
-    financial_state JSONB DEFAULT '{}',
+    product_state   TEXT DEFAULT '{}',
+    customer_state  TEXT DEFAULT '{}',
+    operation_state TEXT DEFAULT '{}',
+    team_state      TEXT DEFAULT '{}',
+    financial_state TEXT DEFAULT '{}',
     updated_at      TIMESTAMP DEFAULT NOW()
 );
 

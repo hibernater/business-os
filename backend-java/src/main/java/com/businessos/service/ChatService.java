@@ -81,8 +81,8 @@ public class ChatService {
                 .collect(Collectors.toList());
     }
 
-    public Flux<String> streamResponseRaw(String message, String conversationId, List<Map<String, String>> history) {
-        return aiEngineClient.streamChatRaw(message, conversationId, history);
+    public Flux<String> streamResponseRaw(String message, String conversationId, List<Map<String, String>> history, boolean autoExecute, String taskId) {
+        return aiEngineClient.streamChatRaw(message, conversationId, history, autoExecute, taskId);
     }
 
     public String extractTextContent(String ndjsonLine) {

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { streamChat, getToken } from "@/lib/api";
+import { streamChat, getToken, clearToken } from "@/lib/api";
 
 // ========== 交互元素类型 ==========
 
@@ -240,6 +240,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const res = await streamChat(content, convId, token);
 
       if (!res.ok) {
+        if (res.status === 401) {
+          clearToken();
+          window.location.reload();
+          return;
+        }
         const errData = await res.json().catch(() => ({}));
         throw new Error((errData as { message?: string }).message ?? `请求失败: ${res.status}`);
       }

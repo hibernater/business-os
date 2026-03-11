@@ -70,7 +70,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } catch (Exception e) {
             SecurityContextHolder.clearContext();
+            TenantContext.clear();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"error\":\"token无效或已过期，请重新登录\"}");
+            return;
         } finally {
             TenantContext.clear();
         }

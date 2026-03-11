@@ -63,6 +63,13 @@ class StepDefinition:
 
 
 @dataclass
+class TwinDimensionMapping:
+    """Skill 执行结果回写到数字孪生的哪个维度"""
+    dimension: str  # product / customer / operation / team / financial
+    extract_keys: list[str] = field(default_factory=list)
+
+
+@dataclass
 class SkillDefinition:
     skill_id: str
     name: str
@@ -74,6 +81,7 @@ class SkillDefinition:
     output_template: str = ""
     capture_prompt: str = ""
     version: int = 1
+    twin_dimensions: list[TwinDimensionMapping] = field(default_factory=list)
 
     @property
     def step_count(self) -> int:
@@ -105,6 +113,8 @@ class SkillExecutionContext:
     current_step_index: int = 0
     step_results: dict[str, StepResult] = field(default_factory=dict)
     enterprise_context: dict[str, Any] = field(default_factory=dict)
+    auto_execute: bool = False
+    task_id: str = ""
 
     @property
     def current_step(self) -> StepDefinition | None:

@@ -76,10 +76,18 @@ export function clearToken(): void {
   }
 }
 
+function handleUnauthorized(): void {
+  clearToken();
+  if (typeof window !== "undefined") {
+    window.location.reload();
+  }
+}
+
 export function streamChat(
   message: string,
   conversationId: string | null,
-  token: string
+  token: string,
+  options?: { autoExecute?: boolean; taskId?: string },
 ): Promise<Response> {
   return fetch(`${BASE_URL}/api/chat/send`, {
     method: "POST",
@@ -90,6 +98,8 @@ export function streamChat(
     body: JSON.stringify({
       message,
       ...(conversationId ? { conversationId } : {}),
+      ...(options?.autoExecute ? { autoExecute: true } : {}),
+      ...(options?.taskId ? { taskId: options.taskId } : {}),
     }),
   });
 }
@@ -405,6 +415,101 @@ export async function fetchAuditLog(token: string, limit: number = 50): Promise<
   if (!res.ok) throw new Error(`获取操作日志失败: ${res.status}`);
   const data = (await res.json()) as { logs: AuditLogEntry[] };
   return data.logs;
+}
+
+// ========== 任务管理 ==========
+
+export interface TaskInfo {
+  id: string;
+  enterpriseId: string;
+  skillId: string;
+  skillName: string;
+  triggerType: "manual" | "scheduled" | "event";
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  currentStep: number;
+  totalSteps: number;
+  errorMessage: string | null;
+  outputSummary: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  durationMs: number | null;
+  updatedAt: string | null;
+}
+
+export interface TaskListResponse {
+  tasks: TaskInfo[];
+  total: number;
+  running: number;
+  failed: number;
+  pending: number;
+  todayCompleted: number;
+}
+
+export async function fetchTasks(
+  token: string,
+  filters?: { status?: string; triggerType?: string },
+): Promise<TaskListResponse> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.set("status", filters.status);
+  if (filters?.triggerType) params.set("triggerType", filters.triggerType);
+  const res = await fetch(`${BASE_URL}/api/tasks?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    if (res.status === 401) { handleUnauthorized(); }
+    throw new Error(`获取任务列表失败: ${res.status}`);
+  }
+  return (await res.json()) as TaskListResponse;
+}
+
+export async function fetchTaskDetail(
+  token: string,
+  taskId: string,
+): Promise<TaskInfo & { outputData?: string; stepResults?: string; inputData?: string }> {
+  const res = await fetch(`${BASE_URL}/api/tasks/${taskId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`获取任务详情失败: ${res.status}`);
+  return (await res.json()) as TaskInfo & { outputData?: string; stepResults?: string; inputData?: string };
+}
+
+export async function createTask(
+  token: string,
+  body: {
+    skillId: string;
+    skillName: string;
+    triggerType?: string;
+    totalSteps?: number;
+  },
+): Promise<{ status: string; task: TaskInfo }> {
+  const res = await fetch(`${BASE_URL}/api/tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      skillId: body.skillId,
+      skillName: body.skillName,
+      triggerType: body.triggerType || "manual",
+      totalSteps: String(body.totalSteps || 0),
+    }),
+  });
+  if (!res.ok) throw new Error(`创建任务失败: ${res.status}`);
+  return (await res.json()) as { status: string; task: TaskInfo };
+}
+
+export async function cancelTask(token: string, taskId: string): Promise<{ status: string; message?: string }> {
+  const res = await fetch(`${BASE_URL}/api/tasks/${taskId}/cancel`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return (await res.json()) as { status: string; message?: string };
+}
+
+export async function deleteTask(token: string, taskId: string): Promise<{ status: string; message?: string }> {
+  const res = await fetch(`${BASE_URL}/api/tasks/${taskId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return (await res.json()) as { status: string; message?: string };
 }
 
 // ========== 数字孪生 ==========

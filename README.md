@@ -30,6 +30,8 @@
 | **P3 长远目标** | Skill 市场 | 发布 / 搜索 / 安装共享 Skill |
 | | 移动端适配 | 响应式布局，移动端侧滑菜单 |
 | | 企业数字孪生 | 五维状态模型（商品/客户/运营/团队/财务）可视化 |
+| | **数字孪生飞轮** | Skill 执行结果自动提取 → 结构化回写 → 孪生积累 |
+| | **任务/工作流管理** | Skill（方法论）与 Task（执行实例）分离，独立管理 |
 
 ## 技术栈
 
@@ -55,16 +57,16 @@ business-os/
 │       └── config/      # Security, CORS
 ├── ai-engine/           # Python AI 引擎 (端口 8081)
 │   ├── agent/           # MainAgent, Planner, SkillCreator
-│   ├── runner/          # SkillRunner (状态机), EnterpriseContext
-│   ├── skills/presets/  # 预装 Skill YAML
+│   ├── runner/          # SkillRunner (状态机), EnterpriseContext, TwinUpdater, TaskLifecycle
+│   ├── skills/presets/  # 预装 Skill YAML (含 twin_dimensions 声明)
 │   ├── tools/           # Tool Registry, 内置工具, 电商 mock 工具
 │   └── scheduler/       # APScheduler 定时引擎
 ├── frontend/            # React 前端 (端口 3000)
 │   └── src/
-│       ├── components/  # Chat, Skills, Assets, Dashboard, Team, Notifications
+│       ├── components/  # Chat, Skills, Assets, Dashboard, Team, Notifications, Tasks
 │       ├── stores/      # Zustand (auth, chat)
 │       └── lib/         # API 客户端
-├── sql/                 # 数据库迁移脚本 (V1~V3)
+├── sql/                 # 数据库迁移脚本 (V1~V4)
 ├── docker-compose.yml   # PostgreSQL + Redis
 └── .env.example         # 环境变量模板
 ```
@@ -93,6 +95,7 @@ docker exec bos-postgres psql -U bos -d business_os -f /docker-entrypoint-initdb
 # 后续迁移:
 docker exec bos-postgres psql -U bos -d business_os -f /docker-entrypoint-initdb.d/V2__team_audit_log.sql
 docker exec bos-postgres psql -U bos -d business_os -f /docker-entrypoint-initdb.d/V3__skill_marketplace.sql
+docker exec bos-postgres psql -U bos -d business_os -f /docker-entrypoint-initdb.d/V4__task_management.sql
 ```
 
 ### 3. 启动 Python AI 引擎
@@ -133,13 +136,13 @@ npm install && npm run dev
 ```
 用户 → 前端(3000)
          ↕ REST + SSE
-       Java 后端(8080)     ← JWT 鉴权, 多租户隔离
+       Java 后端(8080)     ← JWT 鉴权, 多租户隔离, 任务管理
          ↕ NDJSON 流式
-       Python AI 引擎(8081) ← Skill 执行, Tool 调用, 调度
+       Python AI 引擎(8081) ← Skill 执行, Tool 调用, 调度, 孪生回写
          ↕
        通义千问 LLM
          ↕
-       PostgreSQL / Redis   ← 企业资产, 执行记录, 偏好, 状态模型
+       PostgreSQL / Redis   ← 企业资产, 执行记录, 偏好, 状态模型, 任务记录
 ```
 
 ## License

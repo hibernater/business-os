@@ -14,9 +14,10 @@ import {
   Clock,
   Timer,
   Store,
+  CheckCircle2,
+  ExternalLink,
 } from "lucide-react";
-import { fetchSkills, getToken, type SkillInfo } from "@/lib/api";
-import { useChatStore } from "@/stores/chat-store";
+import { fetchSkills, getToken, createTask, streamChat, type SkillInfo } from "@/lib/api";
 import { ExecutionHistory } from "./execution-history";
 import { SchedulePanel } from "./schedule-panel";
 import { MarketplacePanel } from "./marketplace-panel";
@@ -25,16 +26,17 @@ type SubTab = "skills" | "history" | "schedule" | "market";
 
 interface SkillPanelProps {
   onSwitchToChat: () => void;
+  onSwitchToTasks?: () => void;
 }
 
-export function SkillPanel({ onSwitchToChat }: SkillPanelProps) {
+export function SkillPanel({ onSwitchToChat, onSwitchToTasks }: SkillPanelProps) {
   const [subTab, setSubTab] = useState<SubTab>("skills");
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const sendMessage = useChatStore((s) => s.sendMessage);
-  const newConversation = useChatStore((s) => s.newConversation);
+  const [creatingTaskFor, setCreatingTaskFor] = useState<string | null>(null);
+  const [taskCreatedFor, setTaskCreatedFor] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getToken();
@@ -46,11 +48,38 @@ export function SkillPanel({ onSwitchToChat }: SkillPanelProps) {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleRunSkill = (skill: SkillInfo) => {
-    newConversation();
-    const trigger = skill.trigger_phrases[0] || skill.name;
-    sendMessage(trigger);
-    onSwitchToChat();
+  const handleRunSkill = async (skill: SkillInfo) => {
+    const token = getToken();
+    if (!token) return;
+
+    setCreatingTaskFor(skill.skill_id);
+    setTaskCreatedFor(null);
+
+    try {
+      const result = await createTask(token, {
+        skillId: skill.skill_id,
+        skillName: skill.name,
+        triggerType: "manual",
+        totalSteps: skill.step_count,
+      });
+
+      if (result.status === "ok" && result.task?.id) {
+        setTaskCreatedFor(skill.skill_id);
+
+        streamChat(
+          skill.trigger_phrases[0] || skill.name,
+          null,
+          token,
+          { autoExecute: true, taskId: result.task.id },
+        ).catch(() => {});
+
+        setTimeout(() => setTaskCreatedFor(null), 5000);
+      }
+    } catch {
+      setError("创建任务失败");
+    } finally {
+      setCreatingTaskFor(null);
+    }
   };
 
   if (loading) {
@@ -152,10 +181,13 @@ export function SkillPanel({ onSwitchToChat }: SkillPanelProps) {
               key={skill.skill_id}
               skill={skill}
               expanded={expandedId === skill.skill_id}
+              isCreating={creatingTaskFor === skill.skill_id}
+              taskCreated={taskCreatedFor === skill.skill_id}
               onToggle={() =>
                 setExpandedId(expandedId === skill.skill_id ? null : skill.skill_id)
               }
               onRun={() => handleRunSkill(skill)}
+              onSwitchToTasks={onSwitchToTasks}
             />
           ))}
         </div>
@@ -227,13 +259,19 @@ function StatCard({
 function SkillCard({
   skill,
   expanded,
+  isCreating,
+  taskCreated,
   onToggle,
   onRun,
+  onSwitchToTasks,
 }: {
   skill: SkillInfo;
   expanded: boolean;
+  isCreating: boolean;
+  taskCreated: boolean;
   onToggle: () => void;
   onRun: () => void;
+  onSwitchToTasks?: () => void;
 }) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden transition-shadow hover:shadow-sm">
@@ -256,13 +294,34 @@ function SkillCard({
           <p className="mt-0.5 truncate text-sm text-gray-500">{skill.description}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={onRun}
-            className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-2 text-sm text-white hover:bg-indigo-600 transition-colors"
-          >
-            <Play className="h-3.5 w-3.5" />
-            执行
-          </button>
+          {taskCreated ? (
+            <div className="flex items-center gap-1.5 rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-600">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              任务已创建
+              {onSwitchToTasks && (
+                <button
+                  onClick={onSwitchToTasks}
+                  className="ml-1 flex items-center gap-0.5 text-green-700 hover:text-green-800 underline underline-offset-2"
+                >
+                  查看
+                  <ExternalLink className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={onRun}
+              disabled={isCreating}
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-2 text-sm text-white hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isCreating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Play className="h-3.5 w-3.5" />
+              )}
+              {isCreating ? "创建中..." : "执行"}
+            </button>
+          )}
           <button
             onClick={onToggle}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600"

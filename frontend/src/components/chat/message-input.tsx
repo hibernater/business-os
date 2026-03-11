@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send } from "lucide-react";
+import { Send, Maximize2 } from "lucide-react";
 import { useChatStore } from "@/stores/chat-store";
+
+const MAX_LENGTH = 10000;
 
 export function MessageInput() {
   const [value, setValue] = useState("");
+  const [expanded, setExpanded] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { sendMessage, isStreaming } = useChatStore();
 
@@ -13,14 +16,16 @@ export function MessageInput() {
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = "auto";
-    ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
-  }, [value]);
+    const maxH = expanded ? 320 : 140;
+    ta.style.height = `${Math.min(ta.scrollHeight, maxH)}px`;
+  }, [value, expanded]);
 
   const handleSubmit = () => {
     const trimmed = value.trim();
     if (!trimmed || isStreaming) return;
     sendMessage(trimmed);
     setValue("");
+    setExpanded(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -34,26 +39,48 @@ export function MessageInput() {
   };
 
   return (
-    <div className="border-t border-gray-200 bg-white px-4 py-4">
-      <div className="mx-auto flex max-w-3xl items-end gap-3 rounded-xl border border-gray-200 bg-gray-50 p-2 focus-within:border-[#2563eb] focus-within:ring-1 focus-within:ring-[#2563eb]">
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="告诉我你想做什么..."
-          rows={1}
-          disabled={isStreaming}
-          className="max-h-[120px] flex-1 resize-none bg-transparent px-3 py-2 text-gray-900 placeholder-gray-500 outline-none disabled:cursor-not-allowed disabled:opacity-60"
-        />
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!value.trim() || isStreaming}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#2563eb] text-white transition-colors hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Send className="h-4 w-4" />
-        </button>
+    <div className="border-t border-gray-200 bg-white">
+      <div className="mx-auto max-w-3xl px-6 py-4">
+        <div className="rounded-2xl border border-gray-200 bg-gray-50/80 transition-colors focus-within:border-blue-400 focus-within:bg-white focus-within:shadow-sm">
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => {
+              if (e.target.value.length <= MAX_LENGTH) {
+                setValue(e.target.value);
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="告诉我你想做什么..."
+            rows={expanded ? 6 : 2}
+            disabled={isStreaming}
+            className="w-full resize-none bg-transparent px-5 pt-4 pb-2 text-[15px] text-gray-900 placeholder-gray-400 outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          />
+          <div className="flex items-center justify-between px-4 pb-3">
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              title={expanded ? "收起" : "展开"}
+            >
+              <Maximize2 className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-3">
+              <span className="text-[13px] text-gray-400 tabular-nums">
+                {value.length}/{MAX_LENGTH}
+              </span>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!value.trim() || isStreaming}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+        <p className="mt-2 text-center text-[12px] text-gray-400">Works for you, grows with you</p>
       </div>
     </div>
   );

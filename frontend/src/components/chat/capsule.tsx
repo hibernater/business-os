@@ -13,9 +13,9 @@ export function Capsule({ icon: Icon, text, onClick }: CapsuleProps) {
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 transition-colors hover:border-[#2563eb] hover:bg-[#eff6ff] hover:text-[#2563eb]"
+      className="flex items-center gap-2.5 rounded-full border border-gray-200 bg-white px-5 py-2.5 text-[15px] text-gray-700 shadow-sm transition-all hover:border-[#2563eb] hover:bg-[#eff6ff] hover:text-[#2563eb] hover:shadow-md"
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-[18px] w-[18px]" />
       <span>{text}</span>
     </button>
   );

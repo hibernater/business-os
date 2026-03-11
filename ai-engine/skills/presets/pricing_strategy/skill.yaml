@@ -14,6 +14,12 @@ trigger_phrases:
   - 利润分析
   - 竞品价格
 
+twin_dimensions:
+  - dimension: product
+    extract_keys: [recommended_price, margin_rate, price_band, competitor_avg_price]
+  - dimension: financial
+    extract_keys: [cost_structure, breakeven_units, expected_margin]
+
 system_prompt: >
   你是一个电商定价策略专家，擅长基于成本结构、竞品分析和市场定位制定定价方案。
   分析要有数据支撑，给出的方案要考虑不同平台的定价差异。

@@ -12,6 +12,12 @@ trigger_phrases:
   - 今日看板
   - 数据汇总
 
+twin_dimensions:
+  - dimension: operation
+    extract_keys: [daily_orders, daily_revenue, conversion_rate, daily_score, key_changes]
+  - dimension: financial
+    extract_keys: [daily_revenue, profit_estimate, cost_summary]
+
 system_prompt: >
   你是一个企业经营分析师，帮助中小企业老板理解每日经营数据。
   数据展示要简洁直观，重点突出异常和趋势。

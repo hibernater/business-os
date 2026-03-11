@@ -7,7 +7,7 @@ Skill 执行引擎：支持多轮交互的状态机
 3. EXECUTING 阶段：逐步执行，checkpoint 处暂停等待反馈
 4. CAPTURE 阶段：引导用户保存为专属 Skill
 
-每次请求只推进到下一个等待点，然后发 waiting_input 信号结束流。
+auto_execute 模式：跳过所有交互，使用默认值直接执行全部步骤。
 """
 
 from __future__ import annotations
@@ -21,9 +21,10 @@ from runner.skill_schema import (
     ExecutionPhase,
 )
 from runner.enterprise_context import fetch_enterprise_context
+from runner.twin_updater import update_digital_twin
+from runner.task_lifecycle import update_task_progress
 from tools.registry import execute_tool
 
-# 内存中保存活跃的 Skill 执行上下文（单机版，后续可换 Redis）
 _active_executions: dict[str, SkillExecutionContext] = {}
 
 
@@ -53,9 +54,10 @@ class SkillRunner:
         user_input: str,
         conversation_id: str = "",
         enterprise_id: str = "",
+        auto_execute: bool = False,
+        task_id: str = "",
     ) -> AsyncIterator[dict]:
-        """启动新的 Skill 执行"""
-        # 获取企业上下文（资产、偏好等）
+        """启动新的 Skill 执行。auto_execute=True 时跳过所有交互直接执行。"""
         ent_context = {"conversation_id": conversation_id}
         try:
             loaded = await fetch_enterprise_context(enterprise_id, skill.skill_id)
@@ -70,8 +72,12 @@ class SkillRunner:
             enterprise_id=enterprise_id,
             enterprise_context=ent_context,
         )
+        ctx.auto_execute = auto_execute
+        ctx.task_id = task_id
 
-        # 如果有保存的偏好，自动填入采集答案
+        if task_id:
+            await update_task_progress(task_id, status="running")
+
         saved_prefs = ent_context.get("saved_preferences", {})
         if saved_prefs and skill.intake:
             for q in skill.intake:
@@ -85,38 +91,47 @@ class SkillRunner:
             "skill_id": skill.skill_id,
             "name": skill.name,
             "execution_id": ctx.execution_id,
-            "has_intake": len(skill.intake) > 0,
+            "has_intake": len(skill.intake) > 0 and not auto_execute,
             "total_questions": len(skill.intake),
             "total_steps": skill.step_count,
         }
 
-        # 检查是否所有采集问题已有保存的答案
-        unanswered = [q for q in skill.intake if q.question_id not in ctx.collected_answers]
-        if unanswered:
-            ctx.current_question_index = next(
-                i for i, q in enumerate(skill.intake)
-                if q.question_id == unanswered[0].question_id
-            )
-            ctx.phase = ExecutionPhase.INTAKE
-            if ctx.collected_answers:
-                yield {
-                    "type": "text_delta",
-                    "content": "我记得你之前的一些偏好，已经帮你填好了，还有几个需要确认：\n\n",
-                }
-            async for event in self._send_next_question(ctx):
-                yield event
-        elif skill.intake:
-            yield {
-                "type": "text_delta",
-                "content": "我记得你上次的所有偏好设置，直接用上次的配置执行。\n\n",
-            }
-            ctx.phase = ExecutionPhase.CONFIRM_PLAN
-            async for event in self._send_plan_preview(ctx):
+        if auto_execute:
+            # 自动填充所有未回答的采集问题（使用第一个选项或默认值）
+            for q in skill.intake:
+                if q.question_id not in ctx.collected_answers:
+                    ctx.collected_answers[q.question_id] = q.options[0] if q.options else ""
+
+            ctx.phase = ExecutionPhase.EXECUTING
+            async for event in self._execute_next_step(ctx):
                 yield event
         else:
-            ctx.phase = ExecutionPhase.CONFIRM_PLAN
-            async for event in self._send_plan_preview(ctx):
-                yield event
+            unanswered = [q for q in skill.intake if q.question_id not in ctx.collected_answers]
+            if unanswered:
+                ctx.current_question_index = next(
+                    i for i, q in enumerate(skill.intake)
+                    if q.question_id == unanswered[0].question_id
+                )
+                ctx.phase = ExecutionPhase.INTAKE
+                if ctx.collected_answers:
+                    yield {
+                        "type": "text_delta",
+                        "content": "我记得你之前的一些偏好，已经帮你填好了，还有几个需要确认：\n\n",
+                    }
+                async for event in self._send_next_question(ctx):
+                    yield event
+            elif skill.intake:
+                yield {
+                    "type": "text_delta",
+                    "content": "我记得你上次的所有偏好设置，直接用上次的配置执行。\n\n",
+                }
+                ctx.phase = ExecutionPhase.CONFIRM_PLAN
+                async for event in self._send_plan_preview(ctx):
+                    yield event
+            else:
+                ctx.phase = ExecutionPhase.CONFIRM_PLAN
+                async for event in self._send_plan_preview(ctx):
+                    yield event
 
     async def continue_execution(
         self,
@@ -239,7 +254,14 @@ class SkillRunner:
                 "execution_id": ctx.execution_id,
             }
 
-            # 执行步骤声明的 Tool，把结果注入 prompt
+            if ctx.task_id:
+                await update_task_progress(
+                    ctx.task_id,
+                    status="running",
+                    current_step=ctx.current_step_index + 1,
+                    total_steps=ctx.skill.step_count,
+                )
+
             tool_results = ""
             if step.tools:
                 tool_parts = []
@@ -276,24 +298,28 @@ class SkillRunner:
                     step_id=step.step_id, status=StepStatus.FAILED, error=str(e),
                 )
                 yield {"type": "step_error", "step_id": step.step_id, "error": str(e)}
+
+                if ctx.task_id:
+                    await update_task_progress(ctx.task_id, status="failed", error_message=str(e))
                 break
 
             yield {"type": "step_done", "step_id": step.step_id}
             ctx.current_step_index += 1
 
-            if step.checkpoint and ctx.current_step_index < len(ctx.skill.steps):
-                yield {
-                    "type": "checkpoint",
-                    "execution_id": ctx.execution_id,
-                    "step_id": step.step_id,
-                    "prompt": step.checkpoint_prompt or "这一步完成了，继续还是要调整？",
-                }
-                yield {
-                    "type": "waiting_input",
-                    "execution_id": ctx.execution_id,
-                    "phase": "executing",
-                }
-                return
+            if not getattr(ctx, "auto_execute", False):
+                if step.checkpoint and ctx.current_step_index < len(ctx.skill.steps):
+                    yield {
+                        "type": "checkpoint",
+                        "execution_id": ctx.execution_id,
+                        "step_id": step.step_id,
+                        "prompt": step.checkpoint_prompt or "这一步完成了，继续还是要调整？",
+                    }
+                    yield {
+                        "type": "waiting_input",
+                        "execution_id": ctx.execution_id,
+                        "phase": "executing",
+                    }
+                    return
 
         if ctx.current_step_index >= len(ctx.skill.steps):
             async for event in self._enter_capture_phase(ctx):
@@ -317,8 +343,17 @@ class SkillRunner:
     # ========== CAPTURE 阶段 ==========
 
     async def _enter_capture_phase(self, ctx: SkillExecutionContext) -> AsyncIterator[dict]:
-        # 构建执行记录摘要
         execution_record = self._build_execution_record(ctx)
+
+        full_output = ctx.get_previous_results_summary()
+        if ctx.task_id:
+            summary = full_output[:500] if full_output else ""
+            await update_task_progress(
+                ctx.task_id,
+                status="completed",
+                output_summary=summary,
+                output_data=full_output[:5000] if full_output else "",
+            )
 
         yield {
             "type": "skill_done",
@@ -326,6 +361,25 @@ class SkillRunner:
             "execution_id": ctx.execution_id,
             "execution_record": execution_record,
         }
+
+        if ctx.skill.twin_dimensions:
+            try:
+                updated = await update_digital_twin(
+                    enterprise_id=ctx.enterprise_id,
+                    skill=ctx.skill,
+                    ctx=ctx,
+                    llm=self.llm,
+                )
+                if updated:
+                    yield {"type": "twin_updated", "dimensions": [td.dimension for td in ctx.skill.twin_dimensions]}
+            except Exception:
+                pass
+
+        # auto_execute 模式下跳过 capture 阶段
+        if ctx.auto_execute:
+            ctx.phase = ExecutionPhase.DONE
+            clear_execution(ctx.execution_id)
+            return
 
         if ctx.skill.capture_prompt:
             ctx.phase = ExecutionPhase.CAPTURE
@@ -453,19 +507,21 @@ class MockSkillRunner(SkillRunner):
             yield {"type": "step_done", "step_id": step.step_id}
             ctx.current_step_index += 1
 
-            if step.checkpoint and ctx.current_step_index < len(ctx.skill.steps):
-                yield {
-                    "type": "checkpoint",
-                    "execution_id": ctx.execution_id,
-                    "step_id": step.step_id,
-                    "prompt": step.checkpoint_prompt or "继续还是调整？",
-                }
-                yield {
-                    "type": "waiting_input",
-                    "execution_id": ctx.execution_id,
-                    "phase": "executing",
-                }
-                return
+            # auto_execute 模式下跳过 checkpoint
+            if not getattr(ctx, "auto_execute", False):
+                if step.checkpoint and ctx.current_step_index < len(ctx.skill.steps):
+                    yield {
+                        "type": "checkpoint",
+                        "execution_id": ctx.execution_id,
+                        "step_id": step.step_id,
+                        "prompt": step.checkpoint_prompt or "继续还是调整？",
+                    }
+                    yield {
+                        "type": "waiting_input",
+                        "execution_id": ctx.execution_id,
+                        "phase": "executing",
+                    }
+                    return
 
         if ctx.current_step_index >= len(ctx.skill.steps):
             async for event in self._enter_capture_phase(ctx):
