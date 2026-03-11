@@ -7,19 +7,17 @@ import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
 import { SkillPanel } from "@/components/skills/skill-panel";
 import { AssetPanel } from "@/components/assets/asset-panel";
-import { DashboardPanel } from "@/components/dashboard/dashboard-panel";
 import { TeamPanel } from "@/components/team/team-panel";
 import { DigitalTwinPanel } from "@/components/dashboard/digital-twin-panel";
 import { TaskPanel } from "@/components/tasks/task-panel";
 
-export type ViewMode = "chat" | "skills" | "tasks" | "assets" | "dashboard" | "team" | "twin";
+export type ViewMode = "chat" | "skills" | "tasks" | "assets" | "team" | "twin";
 
 const VIEW_TITLES: Record<ViewMode, string> = {
   chat: "对话",
   skills: "Skill 工作台",
   tasks: "任务管理",
   assets: "企业资产",
-  dashboard: "数据看板",
   team: "团队管理",
   twin: "数字孪生",
 };
@@ -95,7 +93,6 @@ export function ChatLayout() {
           )}
           {view === "tasks" && <TaskPanel />}
           {view === "assets" && <AssetPanel />}
-          {view === "dashboard" && <DashboardPanel />}
           {view === "twin" && <DigitalTwinPanel />}
           {view === "team" && <TeamPanel />}
         </div>

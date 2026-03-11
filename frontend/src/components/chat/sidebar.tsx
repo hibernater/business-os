@@ -158,12 +158,6 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
             onClick={() => onViewChange("assets")}
           />
           <NavItem
-            icon={<BarChart3 className="h-4 w-4" />}
-            label="数据看板"
-            active={currentView === "dashboard"}
-            onClick={() => onViewChange("dashboard")}
-          />
-          <NavItem
             icon={<Brain className="h-4 w-4" />}
             label="数字孪生"
             active={currentView === "twin"}

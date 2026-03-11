@@ -298,26 +298,6 @@ export function getNotificationStreamUrl(token: string): string {
   return `${BASE_URL}/api/notifications/stream`;
 }
 
-// ========== Dashboard ==========
-
-export interface DashboardData {
-  assetCounts: Record<string, number>;
-  totalAssets: number;
-  totalExecutions: number;
-  skillExecCounts: Record<string, number>;
-  recentExecutions: { id: string; name: string; createdAt: string }[];
-  preferenceCount: number;
-  conversationCount: number;
-}
-
-export async function fetchDashboard(token: string): Promise<DashboardData> {
-  const res = await fetch(`${BASE_URL}/api/dashboard`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error(`获取看板数据失败: ${res.status}`);
-  return (await res.json()) as DashboardData;
-}
-
 // ========== 团队管理 ==========
 
 export interface TeamMember {
