@@ -5,6 +5,18 @@ description: >
   帮助降低退款率、提升客户满意度。
 version: 1
 
+industry: ["家居收纳", "日用百货", "3C数码", "通用"]
+icon: "rotate-ccw"
+usage_count: 680
+
+quick_setup:
+  - question: "你想分析哪个时间段的退款？"
+    field: time_range
+    options: ["最近7天", "最近30天", "最近3个月"]
+  - question: "主要在哪个平台？"
+    field: platform
+    options: ["淘天", "拼多多", "1688", "抖音", "全部平台"]
+
 trigger_phrases:
   - 退款分析
   - 退货分析

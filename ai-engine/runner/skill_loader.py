@@ -2,7 +2,7 @@
 
 import yaml
 from pathlib import Path
-from runner.skill_schema import SkillDefinition, StepDefinition, ToolCall, IntakeQuestion, TwinDimensionMapping
+from runner.skill_schema import SkillDefinition, StepDefinition, ToolCall, IntakeQuestion, TwinDimensionMapping, QuickSetupQuestion
 
 SKILLS_DIR = Path(__file__).parent.parent / "skills" / "presets"
 
@@ -44,6 +44,14 @@ def load_skill_from_yaml(yaml_path: str | Path) -> SkillDefinition:
             extract_keys=td.get("extract_keys", []),
         ))
 
+    quick_setup = []
+    for qs in data.get("quick_setup", []):
+        quick_setup.append(QuickSetupQuestion(
+            question=qs["question"],
+            field=qs["field"],
+            options=qs.get("options", []),
+        ))
+
     return SkillDefinition(
         skill_id=data["skill_id"],
         name=data["name"],
@@ -56,6 +64,10 @@ def load_skill_from_yaml(yaml_path: str | Path) -> SkillDefinition:
         capture_prompt=data.get("capture_prompt", ""),
         version=data.get("version", 1),
         twin_dimensions=twin_dims,
+        industry=data.get("industry", []),
+        icon=data.get("icon", ""),
+        usage_count=data.get("usage_count", 0),
+        quick_setup=quick_setup,
     )
 
 

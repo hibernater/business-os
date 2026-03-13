@@ -8,17 +8,14 @@ import {
   User,
   Package,
   Database,
-  BarChart3,
   Users,
   Brain,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Store,
   Bell,
-  Settings,
   Zap,
   ListTodo,
+  Home,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useChatStore } from "@/stores/chat-store";
@@ -40,45 +37,21 @@ interface SidebarProps {
   onViewChange: (view: ViewMode) => void;
 }
 
-interface NavGroupProps {
-  icon: React.ReactNode;
-  label: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}
-
-function NavGroup({ icon, label, defaultOpen = true, children }: NavGroupProps) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="mb-1">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600 transition-colors"
-      >
-        {icon}
-        <span className="flex-1 text-left">{label}</span>
-        {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-      </button>
-      {open && <div className="mt-0.5 space-y-0.5 pl-2">{children}</div>}
-    </div>
-  );
-}
-
 interface NavItemProps {
   icon: React.ReactNode;
   label: string;
   active: boolean;
   onClick: () => void;
   badge?: number;
+  trailing?: React.ReactNode;
 }
 
-function NavItem({ icon, label, active, onClick, badge }: NavItemProps) {
+function NavItem({ icon, label, active, onClick, badge, trailing }: NavItemProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] transition-colors ${
+      className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-[14px] transition-colors ${
         active
           ? "bg-blue-50 text-blue-600 font-medium"
           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -91,6 +64,7 @@ function NavItem({ icon, label, active, onClick, badge }: NavItemProps) {
           {badge}
         </span>
       )}
+      {trailing}
     </button>
   );
 }
@@ -103,6 +77,7 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
     newConversation,
     setCurrentConversation,
   } = useChatStore();
+  const [chatExpanded, setChatExpanded] = useState(currentView === "chat");
 
   return (
     <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-gray-200 bg-white">
@@ -119,26 +94,17 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
 
       {/* 导航 */}
       <div className="flex-1 overflow-y-auto px-3 py-3 scrollbar-thin">
-        {/* 对话 */}
-        <NavGroup icon={<MessageSquare className="h-4 w-4" />} label="对话">
-          <button
-            type="button"
-            onClick={() => { newConversation(); onViewChange("chat"); }}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-blue-700 mb-2"
-          >
-            <Plus className="h-4 w-4" />
-            新建对话
-          </button>
+        {/* 主导航 */}
+        <div className="space-y-0.5">
           <NavItem
-            icon={<MessageSquare className="h-4 w-4" />}
-            label="对话"
-            active={currentView === "chat"}
-            onClick={() => onViewChange("chat")}
+            icon={<Home className="h-4 w-4" />}
+            label="首页"
+            active={currentView === "home"}
+            onClick={() => onViewChange("home")}
           />
-        </NavGroup>
 
-        {/* 经营管理 */}
-        <NavGroup icon={<BarChart3 className="h-4 w-4" />} label="经营管理">
+          <div className="my-2 border-t border-gray-100" />
+
           <NavItem
             icon={<Package className="h-4 w-4" />}
             label="Skill 工作台"
@@ -163,48 +129,74 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
             active={currentView === "twin"}
             onClick={() => onViewChange("twin")}
           />
-        </NavGroup>
 
-        {/* 设置 */}
-        <NavGroup icon={<Settings className="h-4 w-4" />} label="设置" defaultOpen={false}>
+          <div className="my-2 border-t border-gray-100" />
+
+          {/* 对话（降级） */}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => { onViewChange("chat"); setChatExpanded(true); }}
+              className={`flex flex-1 items-center gap-2.5 rounded-lg px-3 py-2.5 text-[14px] transition-colors ${
+                currentView === "chat"
+                  ? "bg-blue-50 text-blue-600 font-medium"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span className="flex-1 text-left">对话</span>
+              <span
+                onClick={(e) => { e.stopPropagation(); setChatExpanded(!chatExpanded); }}
+                className="flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:bg-gray-200"
+              >
+                {chatExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { newConversation(); onViewChange("chat"); setChatExpanded(true); }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              title="新建对话"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* 对话历史（折叠） */}
+          {chatExpanded && conversations.length > 0 && (
+            <div className="ml-2 mt-1 space-y-0.5">
+              {conversations.map((conv) => {
+                const lastMsg = conv.messages[conv.messages.length - 1];
+                const isActive = currentView === "chat" && conv.id === currentConversationId;
+                return (
+                  <button
+                    key={conv.id}
+                    type="button"
+                    onClick={() => { setCurrentConversation(conv.id); onViewChange("chat"); }}
+                    className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left transition-colors ${
+                      isActive ? "bg-blue-50 text-blue-600" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                    }`}
+                  >
+                    <MessageSquare className="h-3 w-3 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[12px] font-medium">{conv.title || "新对话"}</div>
+                      {lastMsg && (
+                        <div className="truncate text-[10px] text-gray-400">{formatTime(lastMsg.createdAt)}</div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           <NavItem
             icon={<Users className="h-4 w-4" />}
             label="团队管理"
             active={currentView === "team"}
             onClick={() => onViewChange("team")}
           />
-        </NavGroup>
-
-        {/* 对话历史列表 */}
-        {currentView === "chat" && conversations.length > 0 && (
-          <div className="mt-4 border-t border-gray-100 pt-3">
-            <div className="px-3 pb-2 text-[12px] font-semibold uppercase tracking-wide text-gray-400">
-              历史对话
-            </div>
-            {conversations.map((conv) => {
-              const lastMsg = conv.messages[conv.messages.length - 1];
-              const isActive = conv.id === currentConversationId;
-              return (
-                <button
-                  key={conv.id}
-                  type="button"
-                  onClick={() => { setCurrentConversation(conv.id); onViewChange("chat"); }}
-                  className={`mb-0.5 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors ${
-                    isActive ? "bg-blue-50 text-blue-600" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
-                  }`}
-                >
-                  <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13px] font-medium">{conv.title || "新对话"}</div>
-                    {lastMsg && (
-                      <div className="truncate text-[11px] text-gray-400">{formatTime(lastMsg.createdAt)}</div>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
+        </div>
       </div>
 
       {/* 底部用户区 */}

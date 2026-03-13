@@ -87,8 +87,51 @@ async def list_skills():
             "step_count": s.step_count,
             "steps": [{"step_id": st.step_id, "name": st.name, "description": st.description} for st in s.steps],
             "source": "preset",
+            "industry": s.industry,
+            "icon": s.icon,
+            "usage_count": s.usage_count,
+            "quick_setup": [
+                {"question": qs.question, "field": qs.field, "options": qs.options}
+                for qs in s.quick_setup
+            ],
         })
     return {"skills": result}
+
+
+@app.get("/api/skills/recommendations")
+async def skill_recommendations(enterprise_id: str = ""):
+    """基于企业资产智能推荐 Skill"""
+    from recommend.skill_recommender import get_recommendations
+    recs = await get_recommendations(enterprise_id)
+    return {"recommendations": recs}
+
+
+class DocAnalyzeRequest(BaseModel):
+    content: str
+    filename: str = ""
+
+
+@app.post("/api/analyze-document")
+async def analyze_document_api(req: DocAnalyzeRequest):
+    """分析文档内容，推荐可生成的 Skill"""
+    from generator.doc_skill_generator import analyze_document
+    suggestions = await analyze_document(req.content, req.filename)
+    return {"suggestions": suggestions}
+
+
+class WizardRequest(BaseModel):
+    scene: str
+    answers: dict = {}
+
+
+@app.post("/api/skills/generate-from-wizard")
+async def generate_from_wizard(req: WizardRequest):
+    """引导式创建 Skill"""
+    from generator.doc_skill_generator import generate_skill_from_wizard
+    agent = get_agent()
+    llm = agent.llm if agent else None
+    result = await generate_skill_from_wizard(req.scene, req.answers, llm)
+    return result
 
 
 @app.get("/api/tools")

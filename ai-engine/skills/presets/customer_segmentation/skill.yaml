@@ -5,6 +5,18 @@ description: >
   提升复购率和客户生命周期价值。
 version: 1
 
+industry: ["家居收纳", "日用百货", "服装鞋帽", "通用"]
+icon: "users"
+usage_count: 750
+
+quick_setup:
+  - question: "你的客户规模大概多少？"
+    field: customer_scale
+    options: ["100以下", "100-1000", "1000-10000", "10000以上"]
+  - question: "最想解决什么客户问题？"
+    field: goal
+    options: ["提升复购率", "激活沉睡客户", "找高价值VIP", "全面了解客户"]
+
 trigger_phrases:
   - 客户分群
   - 客户分析

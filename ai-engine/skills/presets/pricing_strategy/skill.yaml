@@ -5,6 +5,18 @@ description: >
   帮助找到利润和销量的最佳平衡点。
 version: 1
 
+industry: ["家居收纳", "日用百货", "通用"]
+icon: "dollar-sign"
+usage_count: 960
+
+quick_setup:
+  - question: "你主要卖什么品类？"
+    field: category
+    options: ["家居收纳", "厨房用品", "卫浴用品", "五金工具", "其他"]
+  - question: "你的目标毛利率大概多少？"
+    field: target_margin
+    options: ["30%以下", "30-50%", "50-70%", "70%以上"]
+
 trigger_phrases:
   - 定价策略
   - 怎么定价

@@ -4,6 +4,18 @@ description: >
   汇总今日经营数据，生成经营日报，帮老板快速了解今天的生意情况。
 version: 2
 
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "bar-chart"
+usage_count: 2100
+
+quick_setup:
+  - question: "你想看哪方面的数据？"
+    field: data_scope
+    options: ["全部概览", "订单和营收", "流量和转化", "客服和售后"]
+  - question: "要和什么时间做对比？"
+    field: compare
+    options: ["昨天", "上周同期", "上月同期", "不用对比"]
+
 trigger_phrases:
   - 今天生意怎么样
   - 看看今天的数据

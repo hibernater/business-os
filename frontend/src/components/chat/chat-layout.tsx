@@ -10,10 +10,12 @@ import { AssetPanel } from "@/components/assets/asset-panel";
 import { TeamPanel } from "@/components/team/team-panel";
 import { DigitalTwinPanel } from "@/components/dashboard/digital-twin-panel";
 import { TaskPanel } from "@/components/tasks/task-panel";
+import { HomePanel } from "@/components/home/home-panel";
 
-export type ViewMode = "chat" | "skills" | "tasks" | "assets" | "team" | "twin";
+export type ViewMode = "home" | "chat" | "skills" | "tasks" | "assets" | "team" | "twin";
 
 const VIEW_TITLES: Record<ViewMode, string> = {
+  home: "首页",
   chat: "对话",
   skills: "Skill 工作台",
   tasks: "任务管理",
@@ -23,7 +25,7 @@ const VIEW_TITLES: Record<ViewMode, string> = {
 };
 
 export function ChatLayout() {
-  const [view, setView] = useState<ViewMode>("chat");
+  const [view, setView] = useState<ViewMode>("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleViewChange = (v: ViewMode) => {
@@ -82,6 +84,9 @@ export function ChatLayout() {
 
         {/* 内容 */}
         <div className="flex flex-1 min-h-0">
+          {view === "home" && (
+            <HomePanel onNavigate={(v) => setView(v as ViewMode)} />
+          )}
           {view === "chat" && (
             <div className="flex flex-1 flex-col min-h-0">
               <MessageList />

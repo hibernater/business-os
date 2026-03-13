@@ -1,5 +1,8 @@
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? ""
+    : "http://localhost:8080");
 
 const TOKEN_KEY = "business-os-token";
 const AUTH_DATA_KEY = "business-os-auth";
@@ -104,6 +107,12 @@ export function streamChat(
   });
 }
 
+export interface QuickSetupQuestion {
+  question: string;
+  field: string;
+  options: string[];
+}
+
 export interface SkillInfo {
   skill_id: string;
   name: string;
@@ -114,6 +123,31 @@ export interface SkillInfo {
   step_count: number;
   steps: { step_id: string; name: string; description: string }[];
   source: "preset" | "custom";
+  industry: string[];
+  icon: string;
+  usage_count: number;
+  quick_setup: QuickSetupQuestion[];
+}
+
+export interface SkillRecommendation {
+  skill_id: string;
+  name: string;
+  description: string;
+  reason: string;
+  priority: number;
+  icon: string;
+  usage_count: number;
+  quick_setup: QuickSetupQuestion[];
+}
+
+export interface DocSkillSuggestion {
+  skill_id: string;
+  name: string;
+  description: string;
+  reason: string;
+  match_score: number;
+  icon: string;
+  quick_setup: QuickSetupQuestion[];
 }
 
 export async function fetchSkills(token: string): Promise<SkillInfo[]> {
@@ -123,6 +157,36 @@ export async function fetchSkills(token: string): Promise<SkillInfo[]> {
   if (!res.ok) throw new Error(`获取Skill列表失败: ${res.status}`);
   const data = (await res.json()) as { skills: SkillInfo[] };
   return data.skills;
+}
+
+export async function fetchSkillRecommendations(token: string, enterpriseId: string): Promise<SkillRecommendation[]> {
+  const res = await fetch(`${BASE_URL}/api/skills/recommendations?enterprise_id=${enterpriseId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  const data = (await res.json()) as { recommendations: SkillRecommendation[] };
+  return data.recommendations;
+}
+
+export async function analyzeDocumentForSkills(token: string, content: string, filename: string): Promise<DocSkillSuggestion[]> {
+  const res = await fetch(`${BASE_URL}/api/skills/analyze-document`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ content, filename }),
+  });
+  if (!res.ok) return [];
+  const data = (await res.json()) as { suggestions: DocSkillSuggestion[] };
+  return data.suggestions;
+}
+
+export async function generateSkillFromWizard(token: string, scene: string, answers: Record<string, string>): Promise<Record<string, unknown>> {
+  const res = await fetch(`${BASE_URL}/api/skills/generate-from-wizard`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ scene, answers }),
+  });
+  if (!res.ok) throw new Error(`生成 Skill 失败: ${res.status}`);
+  return (await res.json()) as Record<string, unknown>;
 }
 
 // ========== 企业资产 ==========

@@ -9,6 +9,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -131,17 +138,21 @@ public class AssetController {
             if (lower.endsWith(".csv") || lower.endsWith(".txt") || lower.endsWith(".md")) {
                 return readTextContent(file);
             }
-            if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
-                return "[Excel文件] " + filename + " (" + file.getSize() + " bytes) - 需要 Apache POI 解析";
+            if (lower.endsWith(".xlsx")) {
+                return readExcelContent(file, true);
+            }
+            if (lower.endsWith(".xls")) {
+                return readExcelContent(file, false);
+            }
+            if (lower.endsWith(".pdf")) {
+                return readPdfContent(file);
             }
             if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".gif")) {
                 return "[图片文件] " + filename + " (" + file.getSize() + " bytes)";
             }
-            if (lower.endsWith(".pdf")) {
-                return "[PDF文件] " + filename + " (" + file.getSize() + " bytes)";
-            }
             return "[文件] " + filename + " (" + file.getSize() + " bytes)";
         } catch (Exception e) {
+            log.warn("extractContent failed for {}: {}", filename, e.getMessage());
             return "[文件读取失败] " + filename;
         }
     }
@@ -161,6 +172,55 @@ public class AssetController {
             }
         }
         return sb.toString();
+    }
+
+    private String readExcelContent(MultipartFile file, boolean isXlsx) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        try (Workbook workbook = isXlsx
+                ? new XSSFWorkbook(file.getInputStream())
+                : new HSSFWorkbook(file.getInputStream())) {
+
+            DataFormatter formatter = new DataFormatter();
+            int sheetCount = Math.min(workbook.getNumberOfSheets(), 3);
+
+            for (int s = 0; s < sheetCount; s++) {
+                Sheet sheet = workbook.getSheetAt(s);
+                String sheetName = sheet.getSheetName();
+                sb.append("【").append(sheetName).append("】\n");
+
+                int maxRows = Math.min(sheet.getLastRowNum() + 1, 100);
+                for (int r = 0; r < maxRows; r++) {
+                    Row row = sheet.getRow(r);
+                    if (row == null) continue;
+                    int maxCols = Math.min(row.getLastCellNum(), 20);
+                    for (int c = 0; c < maxCols; c++) {
+                        Cell cell = row.getCell(c);
+                        String val = cell != null ? formatter.formatCellValue(cell) : "";
+                        if (c > 0) sb.append("\t");
+                        sb.append(val);
+                    }
+                    sb.append("\n");
+                }
+                if (sheet.getLastRowNum() >= 100) {
+                    sb.append("...(仅展示前100行)\n");
+                }
+                sb.append("\n");
+            }
+        }
+        return sb.toString();
+    }
+
+    private String readPdfContent(MultipartFile file) throws Exception {
+        try (PDDocument doc = Loader.loadPDF(file.getBytes())) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setStartPage(1);
+            stripper.setEndPage(Math.min(doc.getNumberOfPages(), 20));
+            String text = stripper.getText(doc);
+            if (text.length() > 10000) {
+                text = text.substring(0, 10000) + "\n...(仅展示前10000字符)";
+            }
+            return text;
+        }
     }
 
     @GetMapping("/download/{id}")

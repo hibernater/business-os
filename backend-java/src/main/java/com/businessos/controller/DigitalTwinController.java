@@ -103,7 +103,7 @@ public class DigitalTwinController {
         long relatedCount = allAssets.stream().filter(a -> filterType.equals(a.getAssetType())).count();
         dim.put("relatedAssets", relatedCount);
 
-        int completeness = stateData.isEmpty() ? 10 : Math.min(100, 30 + stateData.size() * 15 + (int) relatedCount * 5);
+        int completeness = stateData.isEmpty() ? 5 : Math.min(95, 20 + stateData.size() * 5 + (int) relatedCount * 3);
         dim.put("completeness", completeness);
 
         return dim;
@@ -114,7 +114,7 @@ public class DigitalTwinController {
         long assets = allAssets.stream().filter(a -> !"execution_record".equals(a.getAssetType()) && !"preference".equals(a.getAssetType())).count();
         long execs = allAssets.stream().filter(a -> "execution_record".equals(a.getAssetType())).count();
         long prefs = allAssets.stream().filter(a -> "preference".equals(a.getAssetType())).count();
-        return Math.min(100, base + (int) assets * 5 + (int) execs * 3 + (int) prefs * 8);
+        return Math.min(92, base + (int) assets * 3 + (int) execs * 2 + (int) prefs * 5);
     }
 
     private Map<String, Object> parseJson(String json) {

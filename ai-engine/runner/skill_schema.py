@@ -70,6 +70,14 @@ class TwinDimensionMapping:
 
 
 @dataclass
+class QuickSetupQuestion:
+    """快速安装时的简化问题"""
+    question: str
+    field: str
+    options: list[str] = field(default_factory=list)
+
+
+@dataclass
 class SkillDefinition:
     skill_id: str
     name: str
@@ -82,6 +90,10 @@ class SkillDefinition:
     capture_prompt: str = ""
     version: int = 1
     twin_dimensions: list[TwinDimensionMapping] = field(default_factory=list)
+    industry: list[str] = field(default_factory=list)
+    icon: str = ""
+    usage_count: int = 0
+    quick_setup: list[QuickSetupQuestion] = field(default_factory=list)
 
     @property
     def step_count(self) -> int:

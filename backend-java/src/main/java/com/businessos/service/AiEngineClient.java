@@ -100,6 +100,38 @@ public class AiEngineClient {
                 .block();
     }
 
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getSkillRecommendations(String enterpriseId) {
+        return webClient.get()
+                .uri(uri -> uri.path("/api/skills/recommendations")
+                        .queryParam("enterprise_id", enterpriseId).build())
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> analyzeDocument(Map<String, Object> body) {
+        return webClient.post()
+                .uri("/api/analyze-document")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> generateFromWizard(Map<String, Object> body) {
+        return webClient.post()
+                .uri("/api/skills/generate-from-wizard")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+    }
+
     public String extractTextContent(String ndjsonLine) {
         try {
             JsonNode node = objectMapper.readTree(ndjsonLine);

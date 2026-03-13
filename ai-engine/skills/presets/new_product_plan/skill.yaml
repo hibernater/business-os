@@ -5,6 +5,18 @@ description: >
   输出一份完整的新品开发方案文档。
 version: 2
 
+industry: ["家居收纳", "日用百货", "3C数码", "服装鞋帽", "通用"]
+icon: "search"
+usage_count: 1280
+
+quick_setup:
+  - question: "你的店铺主要做什么品类？"
+    field: category
+    options: ["家居收纳", "厨房用品", "卫浴用品", "3C配件", "服装", "其他"]
+  - question: "你最关注新品的哪方面？"
+    field: focus
+    options: ["利润空间", "市场需求", "竞争程度", "差异化"]
+
 trigger_phrases:
   - 新品开发
   - 新品方案
