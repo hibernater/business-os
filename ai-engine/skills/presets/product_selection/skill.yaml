@@ -1,0 +1,119 @@
+skill_id: product_selection
+skill_type: atomic
+name: 爆款选品分析
+description: >
+  基于市场趋势、竞争格局和利润空间，筛选高潜力商品方向，
+  帮你找到下一个能起量的品。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "search"
+usage_count: 1540
+
+quick_setup:
+  - question: "你的店铺主要做什么品类？"
+    field: category
+    options: ["家居收纳", "厨房用品", "服装鞋帽", "3C配件", "美妆个护", "食品", "其他"]
+  - question: "选品预算范围？"
+    field: budget
+    options: ["10元以下", "10-50元", "50-200元", "200元以上"]
+
+trigger_phrases:
+  - 选品分析
+  - 爆款选品
+  - 什么品好卖
+  - 选品方向
+  - 市场趋势
+  - 找个好品
+  - 蓝海市场
+
+twin_dimensions:
+  - dimension: product
+    extract_keys: [opportunity_categories, market_growth_rate, competition_level, recommended_products, avg_margin]
+
+system_prompt: >
+  你是一个电商选品专家，擅长通过市场数据分析找到高潜力品类和商品。
+  分析要基于真实的市场逻辑，给出可操作的选品建议。
+  关注三个核心维度：市场需求（搜索量、增长趋势）、竞争格局（卖家数、集中度）、利润空间。
+  如果有企业资产数据，结合现有品类优势做延伸推荐。
+  如果数据暂不可用，用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: current_category
+    text: "你现在在卖什么品类？想在现有品类延伸还是开拓新方向？"
+    options: ["现有品类延伸", "开拓新品类", "都可以，看数据说话"]
+    allow_free_input: true
+
+  - question_id: platform
+    text: "主要在哪个平台卖？"
+    options: ["淘天", "拼多多", "1688", "抖音", "快手", "多平台"]
+    allow_multiple: true
+
+  - question_id: preference
+    text: "你更看重哪些选品指标？"
+    options: ["利润高（毛利50%+）", "好起量（需求大竞争少）", "供应链简单", "差异化空间大", "复购率高"]
+    allow_multiple: true
+
+  - question_id: budget
+    text: "单品备货预算大概多少？"
+    options: ["5000以下试水", "5000-2万", "2-10万", "10万以上", "暂不确定"]
+    allow_free_input: true
+
+steps:
+  - step_id: market_scan
+    name: 市场机会扫描
+    description: 扫描当前热门和上升品类
+    checkpoint: true
+    checkpoint_prompt: "市场扫描完了。有没有你特别感兴趣的品类方向？我可以深入分析。"
+    prompt_template: |
+      用户的选品需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请完成市场机会扫描（如无真实数据用模拟数据标注）：
+      1. 近期上升品类 Top 10（品类名、搜索增长率、竞争度评分1-5、平均客单价）
+      2. 蓝海机会品类（需求增长快但卖家少的）
+      3. 与用户现有品类协同度高的延伸方向
+      4. 各品类季节性趋势提示
+    output_format: markdown
+
+  - step_id: deep_analysis
+    name: 重点品类深度分析
+    description: 对筛选出的品类做详细的竞争和利润分析
+    checkpoint: true
+    checkpoint_prompt: "深度分析做好了。你觉得哪个品类最值得做？有顾虑可以说说，我帮你评估风险。"
+    prompt_template: |
+      用户信息：{collected_info}
+      市场扫描结果：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      从扫描结果中选出最匹配用户需求的 3-5 个品类，深入分析：
+      每个品类包含：
+      1. 市场规模和增速
+      2. 竞争格局（头部卖家占比、中小卖家生存空间）
+      3. 利润空间测算（成本结构、建议售价、预估毛利率）
+      4. 入局难度评估（供应链、资金、运营能力要求）
+      5. 综合推荐指数（★评分 + 一句话理由）
+    output_format: markdown
+
+  - step_id: action_plan
+    name: 选品落地方案
+    description: 输出可执行的选品和测款计划
+    prompt_template: |
+      用户信息：{collected_info}
+      完整分析：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请给出选品落地方案：
+      1. 推荐 Top 3 商品方向（每个附具体的产品关键词/示例）
+      2. 测款计划（先测什么、怎么测、投多少、看什么数据）
+      3. 供应链建议（1688 找货关键词、询价注意事项）
+      4. 风险提示和止损线
+      5. 时间排期（从选品到上架的完整 timeline）
+    output_format: markdown
+
+capture_prompt: >
+  选品分析完成了。你的品类偏好、预算范围、看重指标我都记住了。
+  下次说"帮我选品"，我直接按你的口味来筛选。要保存这些偏好吗？

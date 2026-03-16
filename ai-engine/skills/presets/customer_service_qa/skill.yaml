@@ -1,0 +1,121 @@
+skill_id: customer_service_qa
+skill_type: atomic
+name: 客服质检分析
+description: >
+  分析客服聊天记录和服务数据，评估服务质量，
+  找出常见问题和改进空间，提升客户满意度。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "message-circle"
+usage_count: 380
+
+quick_setup:
+  - question: "你有几个客服人员？"
+    field: cs_count
+    options: ["1个（老板自己）", "2-3个", "3-5个", "5个以上"]
+  - question: "最想解决什么问题？"
+    field: focus
+    options: ["服务质量不稳定", "响应太慢", "转化率低", "差评太多"]
+
+trigger_phrases:
+  - 客服质检
+  - 客服分析
+  - 客服质量
+  - 客服效率
+  - 客服考核
+  - 服务质量
+  - 客服培训
+
+twin_dimensions:
+  - dimension: team
+    extract_keys: [avg_response_time, satisfaction_score, resolution_rate, cs_conversion_rate, top_issues]
+  - dimension: customer
+    extract_keys: [customer_satisfaction, complaint_rate, praise_rate]
+
+system_prompt: >
+  你是一个客服管理和质量检测专家，帮中小企业提升客服团队的服务质量和效率。
+  分析要兼顾效率指标（响应速度、处理量）和质量指标（满意度、问题解决率）。
+  给出的改进建议要实用，包括具体的话术模板和标准流程。
+  如果有企业资产数据，结合实际客服数据分析。
+  如果数据暂不可用，用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: cs_team
+    text: "你的客服团队情况？"
+    options: ["老板自己兼客服", "1-2个专职客服", "3-5个客服", "客服团队5人以上", "有外包客服"]
+    allow_free_input: true
+
+  - question_id: channels
+    text: "客服主要在哪些渠道？"
+    options: ["旺旺/千牛", "拼多多客服", "微信/企微", "电话", "多渠道"]
+    allow_multiple: true
+
+  - question_id: concern
+    text: "目前最想改善什么？"
+    options: ["响应速度太慢", "回答不专业", "转化率低（咨询了不买）", "售后处理不好", "全面评估"]
+    allow_multiple: true
+
+steps:
+  - step_id: service_metrics
+    name: 服务指标总览
+    description: 统计客服团队的核心服务数据
+    checkpoint: true
+    checkpoint_prompt: "服务数据出来了。有没有哪个指标让你特别在意或者和你感知差异大的？"
+    prompt_template: |
+      用户的客服质检需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请生成客服服务指标报告（如无真实数据用模拟数据标注）：
+      1. 核心指标表：
+         - 平均首次响应时间（秒）
+         - 平均会话时长
+         - 日均接待量（人次/人）
+         - 客户满意度评分
+         - 问题一次解决率
+         - 咨询→下单转化率
+      2. 各客服个人指标对比
+      3. 高峰时段分析（什么时候最忙）
+      4. 与行业平均水平对比
+    output_format: markdown
+
+  - step_id: quality_analysis
+    name: 质量深度分析
+    description: 分析常见问题和服务质量短板
+    checkpoint: true
+    checkpoint_prompt: "质量分析完了。这些高频问题符合你的实际情况吗？有遗漏的问题类型告诉我。"
+    prompt_template: |
+      用户信息：{collected_info}
+      服务指标：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请做深度质量分析：
+      1. 高频咨询问题 Top 10（类型、频次、是否有标准答案）
+      2. 典型好评案例（什么样的服务得到了好评）
+      3. 典型差评案例（什么情况导致了投诉/差评）
+      4. 转化流失分析（咨询了但没买的主要原因）
+      5. 每个问题附改进难度和影响程度
+    output_format: markdown
+
+  - step_id: improvement_plan
+    name: 改进方案
+    description: 给出客服提升方案和话术模板
+    prompt_template: |
+      用户信息：{collected_info}
+      完整分析：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请给出改进方案：
+      1. 标准话术库（针对 Top 10 高频问题的标准回复模板）
+      2. 服务流程优化（哪些环节可以简化/自动化）
+      3. 培训重点（哪些能力需要加强、怎么培训）
+      4. 自动回复建议（哪些问题可以用自动回复处理）
+      5. 考核指标建议（怎么考核客服、权重怎么分）
+    output_format: markdown
+
+capture_prompt: >
+  客服质检分析完成了。你的团队情况和关注重点我都记住了。
+  建议每周做一次客服质检，持续提升服务质量。

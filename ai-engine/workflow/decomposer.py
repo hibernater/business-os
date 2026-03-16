@@ -10,15 +10,32 @@ import uuid
 from dataclasses import dataclass, field
 
 AVAILABLE_SKILLS = {
-    "pricing_strategy": {"name": "智能定价策略", "desc": "分析竞品和成本，给出定价方案"},
-    "product_selection": {"name": "爆款选品分析", "desc": "分析市场趋势，筛选潜力商品"},
-    "customer_analysis": {"name": "客户分群分析", "desc": "分析客户数据，识别高价值客户"},
-    "daily_operations_report": {"name": "每日经营日报", "desc": "汇总昨日经营数据，生成日报"},
-    "refund_monitor": {"name": "退款预警监控", "desc": "监控退款率，分析退款原因"},
-    "fetch_platform_data": {"name": "拉取平台数据", "desc": "从电商平台拉取最新经营数据"},
-    "generate_summary": {"name": "生成汇总报告", "desc": "汇总分析结果，生成可读报告"},
-    "competitor_monitor": {"name": "竞品监控", "desc": "爬取竞品价格和动态"},
-    "inventory_check": {"name": "库存盘点", "desc": "检查库存状态，预警缺货"},
+    # 商品维度
+    "pricing_strategy": {"name": "智能定价策略", "desc": "分析竞品和成本，给出定价方案", "dim": "product"},
+    "new_product_plan": {"name": "新品开发方案", "desc": "基于参考款完成市场调研和新品规划", "dim": "product"},
+    "product_selection": {"name": "爆款选品分析", "desc": "分析市场趋势，筛选高潜力商品方向", "dim": "product"},
+    "competitor_monitor": {"name": "竞品监控分析", "desc": "追踪竞品价格、新品和营销动态", "dim": "product"},
+    "inventory_check": {"name": "库存健康检查", "desc": "盘点库存状态，预警缺货和滞销", "dim": "product"},
+    # 客户维度
+    "customer_segmentation": {"name": "客户分群运营", "desc": "基于RFM模型做客户分群和运营策略", "dim": "customer"},
+    "customer_lifecycle": {"name": "客户生命周期管理", "desc": "追踪客户从新客到流失的全周期运营", "dim": "customer"},
+    "review_analysis": {"name": "评价口碑分析", "desc": "分析评价挖掘卖点和痛点", "dim": "customer"},
+    # 运营维度
+    "inquiry_daily": {"name": "每日经营看板", "desc": "汇总今日经营数据生成日报", "dim": "operation"},
+    "refund_analysis": {"name": "退款退货分析", "desc": "分析退款原因和问题商品", "dim": "operation"},
+    "conversion_optimization": {"name": "转化率诊断优化", "desc": "全链路转化漏斗分析和优化", "dim": "operation"},
+    "promotion_planner": {"name": "营销活动策划", "desc": "设计促销方案、预算分配和ROI测算", "dim": "operation"},
+    "listing_optimization": {"name": "商品详情页优化", "desc": "诊断标题主图详情页并给出优化方案", "dim": "operation"},
+    # 团队维度
+    "team_performance": {"name": "团队绩效看板", "desc": "分析团队产出和效率，生成绩效报告", "dim": "team"},
+    "customer_service_qa": {"name": "客服质检分析", "desc": "评估客服服务质量和效率", "dim": "team"},
+    # 财务维度
+    "profit_analysis": {"name": "利润分析报表", "desc": "拆解营收成本，计算真实利润率", "dim": "financial"},
+    "cost_optimization": {"name": "成本结构优化", "desc": "找出不合理支出，降低运营成本", "dim": "financial"},
+    "cash_flow_forecast": {"name": "现金流预测", "desc": "预测未来资金状况，预警资金风险", "dim": "financial"},
+    # 基础能力
+    "fetch_platform_data": {"name": "平台数据同步", "desc": "从电商平台拉取最新经营数据", "dim": "operation"},
+    "generate_summary": {"name": "智能汇总报告", "desc": "汇总分析结果生成格式化报告", "dim": "operation"},
 }
 
 DECOMPOSE_PROMPT = """你是一个企业工作流设计专家。用户会用自然语言描述一个业务流程，你需要把它拆解成一个工作流。
@@ -110,14 +127,31 @@ def _rule_decompose(description: str) -> dict:
     edges = []
 
     keyword_skills = [
-        (["日报", "每天", "经营数据", "昨天", "昨日"], "daily_operations_report"),
-        (["定价", "价格", "成本", "利润"], "pricing_strategy"),
-        (["选品", "爆款", "新品", "趋势"], "product_selection"),
-        (["客户", "分群", "复购", "VIP"], "customer_analysis"),
-        (["退款", "退货", "售后"], "refund_monitor"),
-        (["竞品", "竞争", "对手"], "competitor_monitor"),
-        (["库存", "缺货", "补货"], "inventory_check"),
-        (["数据", "拉取", "平台", "同步"], "fetch_platform_data"),
+        # 商品
+        (["定价", "价格调整", "定价策略"], "pricing_strategy"),
+        (["新品开发", "新品方案", "新款"], "new_product_plan"),
+        (["选品", "爆款", "蓝海", "什么品好卖"], "product_selection"),
+        (["竞品", "竞争", "对手", "竞品监控"], "competitor_monitor"),
+        (["库存", "缺货", "补货", "滞销"], "inventory_check"),
+        # 客户
+        (["客户分群", "rfm", "分群运营"], "customer_segmentation"),
+        (["客户生命周期", "留存", "流失", "复购", "老客户"], "customer_lifecycle"),
+        (["评价", "口碑", "差评", "好评", "评论"], "review_analysis"),
+        # 运营
+        (["日报", "每天", "经营数据", "昨天", "昨日", "看板"], "inquiry_daily"),
+        (["退款", "退货", "售后"], "refund_analysis"),
+        (["转化率", "转化", "漏斗", "为什么不下单"], "conversion_optimization"),
+        (["促销", "活动", "大促", "双11", "618", "营销"], "promotion_planner"),
+        (["详情页", "标题", "主图", "listing"], "listing_optimization"),
+        # 团队
+        (["团队", "绩效", "员工", "人效", "考核"], "team_performance"),
+        (["客服", "质检", "服务质量", "响应"], "customer_service_qa"),
+        # 财务
+        (["利润", "盈亏", "毛利", "净利", "赚钱"], "profit_analysis"),
+        (["成本", "省钱", "费用", "开支"], "cost_optimization"),
+        (["现金流", "资金", "周转", "备货资金"], "cash_flow_forecast"),
+        # 基础
+        (["数据", "拉取", "同步", "导入"], "fetch_platform_data"),
     ]
 
     matched_skills = []

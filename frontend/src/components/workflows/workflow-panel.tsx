@@ -46,15 +46,32 @@ type SubView = "list" | "create" | "detail";
 /* ── 本地规则兜底：API 不可用时前端自行拆解 ── */
 
 const SKILL_CATALOG: Record<string, { name: string; keywords: string[] }> = {
-  fetch_platform_data: { name: "拉取平台数据", keywords: ["拉取", "数据", "平台", "同步"] },
-  inquiry_daily: { name: "每日经营看板", keywords: ["日报", "每天", "经营", "昨天", "昨日", "看板"] },
-  pricing_strategy: { name: "智能定价策略", keywords: ["定价", "价格", "成本", "利润", "调价"] },
-  product_selection: { name: "爆款选品分析", keywords: ["选品", "爆款", "新品", "趋势"] },
-  customer_segmentation: { name: "客户分群运营", keywords: ["客户", "分群", "复购", "VIP", "用户"] },
+  // 商品
+  pricing_strategy: { name: "智能定价策略", keywords: ["定价", "价格", "调价", "定价策略"] },
+  new_product_plan: { name: "新品开发方案", keywords: ["新品开发", "新品方案", "新款"] },
+  product_selection: { name: "爆款选品分析", keywords: ["选品", "爆款", "蓝海", "什么品好卖"] },
+  competitor_monitor: { name: "竞品监控分析", keywords: ["竞品", "竞争", "对手", "竞品监控"] },
+  inventory_check: { name: "库存健康检查", keywords: ["库存", "缺货", "补货", "滞销"] },
+  // 客户
+  customer_segmentation: { name: "客户分群运营", keywords: ["客户分群", "rfm", "分群运营"] },
+  customer_lifecycle: { name: "客户生命周期管理", keywords: ["留存", "流失", "复购", "老客户", "生命周期"] },
+  review_analysis: { name: "评价口碑分析", keywords: ["评价", "口碑", "差评", "好评", "评论"] },
+  // 运营
+  inquiry_daily: { name: "每日经营看板", keywords: ["日报", "每天", "经营", "昨天", "看板"] },
   refund_analysis: { name: "退款退货分析", keywords: ["退款", "退货", "售后"] },
-  competitor_monitor: { name: "竞品监控", keywords: ["竞品", "竞争", "对手", "监控"] },
-  inventory_check: { name: "库存盘点", keywords: ["库存", "缺货", "补货"] },
-  generate_summary: { name: "生成汇总报告", keywords: ["汇总", "报告", "总结"] },
+  conversion_optimization: { name: "转化率诊断优化", keywords: ["转化率", "转化", "漏斗", "不下单"] },
+  promotion_planner: { name: "营销活动策划", keywords: ["促销", "活动", "大促", "双11", "618", "营销"] },
+  listing_optimization: { name: "商品详情页优化", keywords: ["详情页", "标题", "主图", "listing"] },
+  // 团队
+  team_performance: { name: "团队绩效看板", keywords: ["团队", "绩效", "员工", "人效", "考核"] },
+  customer_service_qa: { name: "客服质检分析", keywords: ["客服", "质检", "服务质量", "响应"] },
+  // 财务
+  profit_analysis: { name: "利润分析报表", keywords: ["利润", "盈亏", "毛利", "净利", "赚钱"] },
+  cost_optimization: { name: "成本结构优化", keywords: ["成本", "省钱", "费用", "开支"] },
+  cash_flow_forecast: { name: "现金流预测", keywords: ["现金流", "资金", "周转", "备货资金"] },
+  // 基础
+  fetch_platform_data: { name: "平台数据同步", keywords: ["拉取", "数据", "平台", "同步", "导入"] },
+  generate_summary: { name: "智能汇总报告", keywords: ["汇总", "报告", "总结"] },
 };
 
 function localDecompose(desc: string): GeneratedWorkflow {

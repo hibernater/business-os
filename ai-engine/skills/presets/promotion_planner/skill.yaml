@@ -1,0 +1,127 @@
+skill_id: promotion_planner
+skill_type: atomic
+name: 营销活动策划
+description: >
+  策划店铺促销活动方案，包括活动节奏、优惠力度、商品选择和预算分配，
+  帮你用最小的投入撬动最大的销量。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "zap"
+usage_count: 950
+
+quick_setup:
+  - question: "什么类型的活动？"
+    field: type
+    options: ["平台大促（双11/618等）", "店铺日常活动", "新品上市促销", "清仓甩卖"]
+  - question: "活动预算大概多少？"
+    field: budget
+    options: ["1000以下", "1000-5000", "5000-2万", "2万以上"]
+
+trigger_phrases:
+  - 促销活动
+  - 活动策划
+  - 大促方案
+  - 双11方案
+  - 618方案
+  - 做个活动
+  - 营销方案
+  - 打折方案
+
+twin_dimensions:
+  - dimension: operation
+    extract_keys: [promotion_type, budget, expected_gmv, expected_roi, duration_days]
+  - dimension: financial
+    extract_keys: [promotion_cost, expected_revenue, profit_after_promotion]
+
+system_prompt: >
+  你是一个电商营销策划专家，帮中小企业用有限预算做高效促销活动。
+  方案要具体可执行，不是泛泛的理论框架。
+  要帮用户算清楚：花多少钱、预计卖多少、利润还剩多少。
+  如果有企业资产数据，结合产品和客户数据做个性化方案。
+  如果数据暂不可用，用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: occasion
+    text: "什么原因/时机要做活动？"
+    options: ["平台大促（双11/618/年货节等）", "店铺周年庆", "新品上市", "清库存", "日常引流", "竞品在做活动"]
+    allow_free_input: true
+
+  - question_id: products
+    text: "活动主推什么商品？"
+    options: ["全店参加", "只推爆款", "主推新品", "清仓款", "还没想好"]
+    allow_free_input: true
+
+  - question_id: budget
+    text: "这次活动总预算大概多少？（含优惠让利 + 推广费用）"
+    options: ["1000以内", "1000-5000", "5000-2万", "2万以上", "没有明确预算"]
+    allow_free_input: true
+
+  - question_id: goal
+    text: "活动最重要的目标是什么？"
+    options: ["冲销量/GMV", "拉新客", "清库存", "提升店铺权重", "品牌曝光"]
+
+steps:
+  - step_id: strategy
+    name: 活动策略设计
+    description: 设计活动的核心玩法和节奏
+    checkpoint: true
+    checkpoint_prompt: "活动策略出来了。你觉得这个玩法适合你的客户群体吗？有想调整的地方告诉我。"
+    prompt_template: |
+      用户的营销活动需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请设计活动策略：
+      1. 活动主题和口号（吸引人、好传播）
+      2. 核心玩法设计（满减/折扣/赠品/限时/拼团等，选最适合的 1-2 种）
+      3. 活动节奏安排：
+         - 预热期（做什么、多长）
+         - 爆发期（怎么引爆）
+         - 返场期（怎么收尾）
+      4. 参与商品选择和分层（引流款/利润款/形象款）
+      5. 优惠力度设计（既有吸引力又保住利润）
+    output_format: markdown
+
+  - step_id: budget_plan
+    name: 预算与 ROI 测算
+    description: 分配预算并预估活动效果
+    checkpoint: true
+    checkpoint_prompt: "预算方案做好了。这个投入产出比你能接受吗？想调整力度告诉我。"
+    prompt_template: |
+      用户信息：{collected_info}
+      活动策略：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请做预算和 ROI 测算：
+      1. 预算分配表（优惠让利、推广费用、赠品成本、其他）
+      2. 预估效果：
+         - 预估 GMV 和订单量
+         - 预估新客获取数
+         - 预估 ROI（投入产出比）
+      3. 利润测算（扣掉优惠和推广费后还赚多少）
+      4. 不同力度方案对比（保守/标准/激进 三种方案）
+      5. 止损线设定（什么时候该收手）
+    output_format: markdown
+
+  - step_id: execution_checklist
+    name: 执行清单
+    description: 输出可直接对照执行的待办清单
+    prompt_template: |
+      用户信息：{collected_info}
+      完整方案：{previous_results}
+
+      请输出执行清单（按时间线）：
+      1. 活动前 3 天（准备工作）
+      2. 活动前 1 天（最终确认）
+      3. 活动当天（关键操作）
+      4. 活动期间（监控和调整）
+      5. 活动结束后（复盘和跟进）
+      每条附负责人角色和完成标准
+    output_format: markdown
+
+capture_prompt: >
+  活动方案做好了。你的活动偏好、预算习惯、目标优先级我都记住了。
+  下次说"帮我做个活动"，我直接按你的风格来策划。

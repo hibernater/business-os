@@ -1,0 +1,115 @@
+skill_id: inventory_check
+skill_type: atomic
+name: 库存健康检查
+description: >
+  分析库存状态，预警缺货和滞销风险，给出补货建议和清仓方案，
+  让库存周转更高效。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "package"
+usage_count: 720
+
+quick_setup:
+  - question: "你的 SKU 数量大概多少？"
+    field: sku_count
+    options: ["50以下", "50-200", "200-1000", "1000以上"]
+  - question: "最头疼的库存问题是？"
+    field: pain
+    options: ["经常断货", "滞销积压", "周转太慢", "不知道备多少"]
+
+trigger_phrases:
+  - 库存检查
+  - 库存盘点
+  - 缺货预警
+  - 库存分析
+  - 补货建议
+  - 滞销清仓
+  - 库存周转
+
+twin_dimensions:
+  - dimension: product
+    extract_keys: [total_sku, stockout_risk_count, overstock_count, turnover_days, reorder_suggestions]
+  - dimension: financial
+    extract_keys: [inventory_value, tied_up_capital, potential_loss]
+
+system_prompt: >
+  你是一个库存管理专家，帮中小电商优化库存结构。
+  分析要关注两个核心风险：缺货损失和滞销积压。
+  给出的补货建议要考虑资金占用、季节性和销售趋势。
+  如果有企业资产数据，结合实际销售数据分析。
+  如果数据暂不可用，用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: sku_scope
+    text: "要检查哪些商品的库存？"
+    options: ["全部商品", "某个品类", "指定商品", "只看异常的"]
+    allow_free_input: true
+
+  - question_id: warehouse
+    text: "你的仓储情况？"
+    options: ["自有仓库", "第三方仓", "多仓（分仓发货）", "工厂直发"]
+    allow_free_input: true
+
+  - question_id: concern
+    text: "最想解决什么库存问题？"
+    options: ["快断货了要补货", "积压太多要清仓", "整体库存优化", "备货计划（大促前）"]
+    allow_multiple: true
+
+steps:
+  - step_id: inventory_overview
+    name: 库存全景
+    description: 盘点当前库存状态
+    checkpoint: true
+    checkpoint_prompt: "库存全景出来了。有没有哪些数据和你实际不符？或者有特别关心的商品？"
+    prompt_template: |
+      用户的库存检查需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请生成库存全景报告（如无真实数据用模拟数据标注）：
+      1. 库存总览（总 SKU 数、总库存量、总库存金额）
+      2. 库存健康度评分（A/B/C/D 四级）
+      3. 库存状态分布（正常 / 偏低 / 缺货预警 / 积压）
+      4. 库存周转天数（整体 + 各品类）
+      5. 资金占用分析（多少钱压在库存上）
+    output_format: markdown
+
+  - step_id: risk_alert
+    name: 风险预警
+    description: 识别缺货和滞销风险
+    checkpoint: true
+    checkpoint_prompt: "风险商品找到了。这些商品的情况和你的判断一致吗？"
+    prompt_template: |
+      用户信息：{collected_info}
+      库存全景：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请做库存风险预警：
+      1. 🔴 缺货预警（预计 X 天内断货的商品，按紧急程度排序）
+         每条附：当前库存、日均销量、预计断货日、建议补货量
+      2. 🟡 滞销预警（超过 X 天未动销的商品）
+         每条附：库存量、金额、滞销天数、建议处理方式
+      3. 库存积压 Top 10（占用资金最多的慢动销商品）
+    output_format: markdown
+
+  - step_id: action_plan
+    name: 补货与清仓方案
+    description: 给出补货计划和滞销处理方案
+    prompt_template: |
+      用户信息：{collected_info}
+      完整分析：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请给出行动方案：
+      1. 补货计划表（商品、建议补货量、预计到货时间、备注）
+      2. 清仓方案（商品、建议处理方式：打折/组合/退供应商、预期回收资金）
+      3. 库存优化建议（安全库存设定、补货频次、品类结构调整）
+      4. 本周优先事项 Top 3
+    output_format: markdown
+
+capture_prompt: >
+  库存检查完成了。你的仓储情况、关注重点我都记住了。
+  建议每周做一次库存检查，或设置自动监控。要开启定期提醒吗？

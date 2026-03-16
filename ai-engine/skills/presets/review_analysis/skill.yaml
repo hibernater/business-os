@@ -1,0 +1,121 @@
+skill_id: review_analysis
+skill_type: atomic
+name: 评价口碑分析
+description: >
+  分析商品评价和买家反馈，挖掘好评卖点和差评痛点，
+  指导产品改进和详情页优化。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "star"
+usage_count: 580
+
+quick_setup:
+  - question: "你想分析谁的评价？"
+    field: target
+    options: ["自己店铺的评价", "竞品的评价", "整个品类的评价"]
+  - question: "主要关注好评还是差评？"
+    field: focus
+    options: ["差评（找问题改进）", "好评（提炼卖点）", "都关注"]
+
+trigger_phrases:
+  - 评价分析
+  - 口碑分析
+  - 差评分析
+  - 好评提炼
+  - 买家反馈
+  - 评论分析
+  - 评价管理
+
+twin_dimensions:
+  - dimension: customer
+    extract_keys: [avg_rating, positive_rate, negative_keywords, positive_keywords, improvement_priority]
+  - dimension: product
+    extract_keys: [product_strengths, product_weaknesses, quality_issues]
+
+system_prompt: >
+  你是一个电商评价分析专家，擅长从海量买家评价中提取有价值的商业洞察。
+  分析要区分"表面现象"和"深层原因"，帮企业找到真正需要改进的方向。
+  好评分析重点提炼可用于营销的卖点表述，差评分析重点给出可操作的改进建议。
+  如果有企业资产数据，结合产品信息做针对性分析。
+  如果数据暂不可用，用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: target
+    text: "你想分析哪些商品的评价？"
+    options: ["全部商品", "某个爆款", "某个新品", "竞品的评价"]
+    allow_free_input: true
+
+  - question_id: time_range
+    text: "分析哪个时间段的评价？"
+    options: ["最近30天", "最近3个月", "最近半年", "全部评价"]
+
+  - question_id: focus
+    text: "你最想从评价里了解什么？"
+    options: ["差评原因和改进方向", "好评卖点提炼", "竞品口碑对比", "评价趋势变化", "全面分析"]
+    allow_multiple: true
+
+steps:
+  - step_id: review_overview
+    name: 评价概览
+    description: 统计评价整体分布情况
+    checkpoint: true
+    checkpoint_prompt: "评价概览出来了。有没有哪个数据让你意外的？或者特别想深挖某类评价？"
+    prompt_template: |
+      用户的评价分析需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请生成评价概览（如无真实数据用模拟数据标注）：
+      1. 评价总览（总数、好评率、中评率、差评率，含趋势变化）
+      2. 评分分布（5星/4星/3星/2星/1星 各占比）
+      3. 高频关键词词云（好评 Top 10 + 差评 Top 10）
+      4. 带图/视频评价占比（这些评价影响最大）
+      5. 评价回复率和回复速度
+    output_format: markdown
+
+  - step_id: deep_insights
+    name: 深度洞察
+    description: 从好评和差评中提取商业洞察
+    checkpoint: true
+    checkpoint_prompt: "洞察分析完了。这些发现和你的实际感受匹配吗？有需要补充的产品信息吗？"
+    prompt_template: |
+      用户信息：{collected_info}
+      评价概览：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请做深度洞察分析：
+      1. 💚 好评卖点提炼
+         - 买家最认可的 Top 5 卖点（附原文摘录）
+         - 可直接用于详情页/标题的卖点话术
+         - 超出买家预期的惊喜点
+      2. 🔴 差评痛点分析
+         - Top 5 差评原因（附严重程度和出现频率）
+         - 区分：产品质量问题 vs 物流问题 vs 预期不符
+         - 每条附改进建议和优先级
+      3. 竞品对比（如适用）
+         - 我方 vs 竞品的口碑对比
+         - 竞品被夸而我方未被提到的点
+    output_format: markdown
+
+  - step_id: action_items
+    name: 改进行动清单
+    description: 输出可执行的改进方案
+    prompt_template: |
+      用户信息：{collected_info}
+      完整分析：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请给出改进行动清单：
+      1. 产品改进（质量/设计/包装的具体调整）
+      2. 详情页优化（哪些卖点要突出、哪些买家顾虑要打消）
+      3. 评价管理（差评回复模板、好评引导策略）
+      4. 客服话术优化（针对高频问题的标准回答）
+      5. 优先级排序和预期效果
+    output_format: markdown
+
+capture_prompt: >
+  评价分析完成了。你关注的商品、分析维度和重点方向我都记住了。
+  建议每月做一次评价分析，持续追踪口碑变化趋势。

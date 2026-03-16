@@ -1,0 +1,119 @@
+skill_id: customer_lifecycle
+skill_type: atomic
+name: 客户生命周期管理
+description: >
+  追踪客户从首次购买到沉睡流失的全周期，针对不同阶段制定激活、留存、
+  挽回策略，提升客户终身价值。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "美妆个护", "通用"]
+icon: "users"
+usage_count: 620
+
+quick_setup:
+  - question: "你目前最想解决什么客户问题？"
+    field: goal
+    options: ["新客复购太低", "老客流失严重", "想做会员体系", "整体了解客户"]
+  - question: "你有私域运营渠道吗？"
+    field: channel
+    options: ["微信群/企微", "短信", "旺旺/千牛", "暂无私域"]
+
+trigger_phrases:
+  - 客户生命周期
+  - 客户留存
+  - 客户流失
+  - 复购率
+  - 老客户激活
+  - 沉睡客户
+  - 客户挽回
+  - 会员运营
+
+twin_dimensions:
+  - dimension: customer
+    extract_keys: [lifecycle_distribution, new_to_repeat_rate, churn_rate, reactivation_rate, ltv_avg, retention_30d]
+
+system_prompt: >
+  你是一个客户生命周期管理专家，帮助中小电商提升客户留存和终身价值。
+  分析要围绕客户旅程的关键转化节点：新客→复购→忠诚→沉睡→流失。
+  每个阶段都要给出具体的触达策略和话术模板。
+  如果有企业资产数据，结合实际客户行为分析。
+  如果数据暂不可用，用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: customer_base
+    text: "你的店铺客户规模大概多少？复购率感觉如何？"
+    options: ["客户少，复购还行", "客户多，复购率低", "不太清楚，帮我分析", "刚起步，客户还很少"]
+    allow_free_input: true
+
+  - question_id: goal
+    text: "这次分析最想解决什么？"
+    options: ["新客转化为回头客", "减少客户流失", "激活沉睡客户", "搭建会员体系", "全面评估客户健康度"]
+    allow_multiple: true
+
+  - question_id: touchpoints
+    text: "你现在通过什么渠道和客户保持联系？"
+    options: ["微信/企微私域", "短信", "旺旺消息", "包裹卡/好评卡", "电话", "暂时没有主动联系"]
+    allow_multiple: true
+
+steps:
+  - step_id: lifecycle_mapping
+    name: 客户生命周期分布
+    description: 划分客户所处的生命周期阶段
+    checkpoint: true
+    checkpoint_prompt: "客户分布出来了。你觉得和实际感受一致吗？有没有需要调整分群标准的？"
+    prompt_template: |
+      用户的客户生命周期管理需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请完成客户生命周期分析（如无真实数据用模拟数据标注）：
+      1. 生命周期分布图（各阶段人数和占比）：
+         - 新客（首次购买 30 天内）
+         - 活跃客（30天内有复购）
+         - 沉默客（30-90天未购买）
+         - 沉睡客（90-180天未购买）
+         - 流失客（180天以上未购买）
+      2. 关键转化率：新客→复购、活跃→沉默、沉睡→挽回
+      3. 客户终身价值（LTV）分布
+      4. 客户健康度评分（整体 1-100 分）
+    output_format: markdown
+
+  - step_id: stage_strategy
+    name: 分阶段运营策略
+    description: 针对每个生命周期阶段制定运营方案
+    checkpoint: true
+    checkpoint_prompt: "策略方案出来了。有没有你之前试过效果好的方法？或者有预算限制我没考虑到的？"
+    prompt_template: |
+      用户信息：{collected_info}
+      生命周期分析：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请为每个生命周期阶段制定策略：
+      每个阶段包含：
+      1. 运营目标（如"7天内促成二次购买"）
+      2. 最佳触达时机（第几天、什么时间点）
+      3. 触达渠道和方式
+      4. 话术/内容模板（可直接复制使用）
+      5. 激励策略（优惠力度、赠品等）
+      6. 预期转化率和 ROI
+    output_format: markdown
+
+  - step_id: execution_plan
+    name: 落地执行计划
+    description: 输出可立即执行的行动清单
+    prompt_template: |
+      用户信息：{collected_info}
+      完整分析：{previous_results}
+
+      请输出落地计划：
+      1. 本周立即做（最紧急、最高 ROI 的 3 个动作）
+      2. 月度运营节奏（每周的重点任务）
+      3. 自动化建议（哪些环节可以设置自动触发）
+      4. 效果监控看板（追踪哪些指标、多久看一次）
+    output_format: markdown
+
+capture_prompt: >
+  客户生命周期分析完成了。你的客户规模、运营目标、触达渠道偏好我都记住了。
+  建议每月做一次生命周期扫描，持续追踪客户健康度。

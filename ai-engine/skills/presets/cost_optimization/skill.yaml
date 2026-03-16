@@ -1,0 +1,118 @@
+skill_id: cost_optimization
+skill_type: atomic
+name: 成本结构优化
+description: >
+  深入分析各项经营成本，找出不合理的支出和可优化的环节，
+  在不影响业务的前提下降低运营成本。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "dollar-sign"
+usage_count: 640
+
+quick_setup:
+  - question: "你觉得哪部分成本最高？"
+    field: pain
+    options: ["采购/进货", "物流快递", "平台推广", "人工成本", "不确定"]
+  - question: "你的月营收大概多少？"
+    field: revenue
+    options: ["5万以下", "5-20万", "20-100万", "100万以上"]
+
+trigger_phrases:
+  - 成本优化
+  - 成本分析
+  - 降低成本
+  - 成本太高
+  - 省钱
+  - 费用分析
+  - 开支分析
+
+twin_dimensions:
+  - dimension: financial
+    extract_keys: [total_cost, cost_breakdown, optimization_potential, savings_estimate, cost_to_revenue_ratio]
+
+system_prompt: >
+  你是一个电商成本管理专家，帮中小企业在不影响业务增长的前提下优化成本结构。
+  分析要考虑成本和效果的平衡——不是一味地砍成本，而是把钱花在刀刃上。
+  每条优化建议要算清投入产出：省多少、有没有风险、对业务的影响。
+  如果有企业资产数据，结合实际支出数据分析。
+  如果数据暂不可用，用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: cost_concern
+    text: "你觉得哪部分成本最需要优化？"
+    options: ["采购成本", "物流成本", "推广费用", "人工成本", "平台费用", "不确定，帮我分析"]
+    allow_multiple: true
+
+  - question_id: current_situation
+    text: "你目前的净利润率大概多少？"
+    options: ["负利润（亏钱）", "0-5%", "5-15%", "15-30%", "30%以上", "不太清楚"]
+
+  - question_id: constraints
+    text: "优化成本有什么限制条件？"
+    options: ["不能降低产品质量", "不能减少推广", "不能裁人", "没有限制", "其他"]
+    allow_free_input: true
+
+steps:
+  - step_id: cost_structure
+    name: 成本结构扫描
+    description: 全面扫描各项成本的构成和占比
+    checkpoint: true
+    checkpoint_prompt: "成本结构出来了。有没有哪项成本数据和你实际差异大？告诉我实际数字我重新算。"
+    prompt_template: |
+      用户的成本优化需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请扫描成本结构（如无真实数据用模拟数据标注）：
+      1. 成本总览（月度总成本、占营收百分比）
+      2. 成本明细拆解（按类别）：
+         - 商品成本（采购/原材料/包装）
+         - 物流成本（快递费/仓储/打包耗材）
+         - 营销成本（平台推广/直播/优惠让利）
+         - 平台成本（扣点/技术服务费/保证金）
+         - 人工成本（工资/社保/福利）
+         - 固定开支（房租/水电/软件/设备）
+      3. 各项成本的同比/环比变化
+      4. 与行业平均水平对比
+    output_format: markdown
+
+  - step_id: opportunity_analysis
+    name: 优化机会分析
+    description: 找出可以优化的成本项
+    checkpoint: true
+    checkpoint_prompt: "优化机会找到了。你觉得哪些最可行？有什么顾虑可以说说。"
+    prompt_template: |
+      用户信息：{collected_info}
+      成本结构：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请分析优化机会（按节省金额排序）：
+      每条机会包含：
+      1. 优化方向（哪项成本、怎么优化）
+      2. 预估节省金额（月度/年度）
+      3. 实施难度（容易/中等/困难）
+      4. 风险评估（对业务、质量、团队的影响）
+      5. 具体做法（可直接操作的建议）
+    output_format: markdown
+
+  - step_id: action_plan
+    name: 优化落地方案
+    description: 给出分阶段的成本优化计划
+    prompt_template: |
+      用户信息：{collected_info}
+      完整分析：{previous_results}
+
+      请给出分阶段优化计划：
+      1. 本周（零成本、立即可做的优化）
+      2. 本月（需要一些准备但效果明显的优化）
+      3. 本季度（需要谈判/切换供应商等较大调整）
+      4. 总计预估月度节省金额和新的利润率
+      5. 效果监控方法（怎么确认优化有效）
+    output_format: markdown
+
+capture_prompt: >
+  成本优化分析完成了。你的成本结构和优化优先级我都记住了。
+  建议每季度做一次成本审计，持续控制运营成本。

@@ -1,0 +1,112 @@
+skill_id: team_performance
+skill_type: atomic
+name: 团队绩效看板
+description: >
+  分析团队成员的工作产出和效率，生成绩效报告，
+  帮助管理者识别优秀员工和需要辅导的成员。
+version: 1
+
+industry: ["通用"]
+icon: "users"
+usage_count: 430
+
+quick_setup:
+  - question: "你的团队规模？"
+    field: team_size
+    options: ["3人以下", "3-10人", "10-30人", "30人以上"]
+  - question: "最想了解什么？"
+    field: focus
+    options: ["整体效率", "个人产出", "协作瓶颈", "考核评分"]
+
+trigger_phrases:
+  - 团队绩效
+  - 团队分析
+  - 员工表现
+  - 绩效考核
+  - 人效分析
+  - 团队效率
+  - 工作量分析
+
+twin_dimensions:
+  - dimension: team
+    extract_keys: [team_size, avg_efficiency_score, top_performers, underperformers, collaboration_score, workload_balance]
+
+system_prompt: >
+  你是一个人力资源和团队管理专家，帮中小企业老板评估和优化团队效率。
+  分析要公正客观，关注结果导向但也考虑过程指标。
+  给出的建议要考虑中小企业的实际情况（扁平管理、一人多岗）。
+  如果有企业资产数据，结合实际业务数据评估团队产出。
+  如果数据暂不可用，用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: team_info
+    text: "你的团队有多少人？主要岗位有哪些？"
+    options: ["电商运营为主", "客服为主", "运营+客服+仓储", "综合团队"]
+    allow_free_input: true
+
+  - question_id: period
+    text: "分析哪个时间段？"
+    options: ["本周", "本月", "上月", "最近3个月"]
+
+  - question_id: focus
+    text: "你最想了解什么？"
+    options: ["每个人的产出和效率", "谁做得好谁需要帮助", "工作量是否均衡", "团队协作有没有瓶颈", "全面评估"]
+    allow_multiple: true
+
+steps:
+  - step_id: performance_overview
+    name: 团队总览
+    description: 生成团队整体绩效概览
+    checkpoint: true
+    checkpoint_prompt: "团队数据出来了。和你的感知一致吗？有没有人的表现让你意外？"
+    prompt_template: |
+      用户的团队绩效分析需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请生成团队绩效总览（如无真实数据用模拟数据标注）：
+      1. 团队概况（人数、岗位分布、人均产出）
+      2. 关键效率指标：
+         - 人均 GMV 贡献
+         - 人均处理订单/工单数
+         - 任务完成率和及时率
+      3. 团队整体评分（1-100）
+      4. 同比/环比变化趋势
+    output_format: markdown
+
+  - step_id: individual_analysis
+    name: 个人表现分析
+    description: 逐人评估工作表现
+    checkpoint: true
+    checkpoint_prompt: "个人分析好了。这些评估你觉得合理吗？有需要调整的维度或权重？"
+    prompt_template: |
+      用户信息：{collected_info}
+      团队总览：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请做个人表现分析：
+      1. 成员绩效排名表（姓名/岗位/核心指标/评分/变化趋势）
+      2. 🌟 优秀表现（谁做得好、好在哪、值得推广的做法）
+      3. ⚠️ 需要关注（谁可能需要帮助、什么方面、建议辅导方式）
+      4. 工作量平衡分析（是否存在忙闲不均）
+    output_format: markdown
+
+  - step_id: improvement_plan
+    name: 管理建议
+    description: 给出团队优化建议
+    prompt_template: |
+      用户信息：{collected_info}
+      完整分析：{previous_results}
+
+      请给出管理建议：
+      1. 本周管理重点（最该关注的 2-3 件事）
+      2. 人员发展建议（谁适合给更多责任、谁需要培训）
+      3. 流程优化建议（哪些工作流程可以改善团队效率）
+      4. 激励方案建议（适合中小团队的激励机制）
+    output_format: markdown
+
+capture_prompt: >
+  团队分析完成了。你的团队结构和关注重点我都记住了。
+  建议每月做一次团队绩效分析，持续追踪改进效果。

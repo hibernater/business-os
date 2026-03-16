@@ -1,0 +1,93 @@
+skill_id: generate_summary
+skill_type: atomic
+name: 智能汇总报告
+description: >
+  将多个分析结果和数据汇总为一份简洁的报告，
+  适合发给团队或存档备查。
+version: 1
+
+industry: ["通用"]
+icon: "file-text"
+usage_count: 920
+
+quick_setup:
+  - question: "报告给谁看？"
+    field: audience
+    options: ["自己看", "给团队", "给老板/投资人", "存档"]
+  - question: "希望报告多长？"
+    field: length
+    options: ["一页纸摘要", "详细报告", "数据+建议"]
+
+trigger_phrases:
+  - 生成报告
+  - 汇总报告
+  - 总结一下
+  - 写个报告
+  - 周报
+  - 月报
+  - 报告汇总
+
+twin_dimensions:
+  - dimension: operation
+    extract_keys: [report_type, key_findings_count, action_items_count]
+
+system_prompt: >
+  你是一个商业报告撰写专家，擅长将复杂的数据分析浓缩为简洁、重点突出的报告。
+  报告风格要根据受众调整：给老板要简短有结论，给团队要有具体行动项。
+  一定要有"关键发现"、"行动建议"和"数据支撑"三个核心模块。
+  如果有之前的分析结果，直接引用和汇总。
+
+intake:
+  - question_id: report_type
+    text: "生成什么类型的报告？"
+    options: ["经营日报", "经营周报", "经营月报", "专项分析报告", "自定义"]
+    allow_free_input: true
+
+  - question_id: audience
+    text: "报告给谁看？"
+    options: ["自己看（详细一些）", "给团队（有行动项）", "给老板/合伙人（重点和结论）", "存档备查"]
+
+  - question_id: include
+    text: "报告需要包含哪些内容？"
+    options: ["销售数据", "客户数据", "利润分析", "竞品动态", "团队情况", "全部汇总"]
+    allow_multiple: true
+
+steps:
+  - step_id: gather
+    name: 数据收集
+    description: 汇集各维度的分析结果
+    prompt_template: |
+      用户的报告需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请收集并整理报告素材（如无真实数据用模拟数据标注）：
+      1. 各维度数据快照（销售/客户/利润/团队）
+      2. 近期重要变化和事件
+      3. 之前分析的关键发现
+    output_format: markdown
+
+  - step_id: report
+    name: 报告生成
+    description: 生成格式化的汇总报告
+    checkpoint: true
+    checkpoint_prompt: "报告初稿出来了。有没有需要补充或调整的内容？语气和详细程度合适吗？"
+    prompt_template: |
+      用户需求：{collected_info}
+      报告素材：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请根据受众生成正式报告，包含：
+      1. 报告标题和日期
+      2. 一句话摘要（整体状况）
+      3. 关键发现（3-5 条，最重要的洞察）
+      4. 数据支撑（关键数字和表格）
+      5. 行动建议（按优先级排序的 todo）
+      6. 风险提示（需要注意的问题）
+    output_format: markdown
+
+capture_prompt: >
+  报告生成完成。你的报告风格偏好和汇总维度我记住了。
+  下次说"帮我写周报"，我直接按这个格式来。

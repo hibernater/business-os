@@ -1,0 +1,130 @@
+skill_id: listing_optimization
+skill_type: atomic
+name: 商品详情页优化
+description: >
+  诊断商品标题、主图、详情页的问题，基于买家心理和平台算法
+  给出优化方案，提升点击率和转化率。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "file-text"
+usage_count: 870
+
+quick_setup:
+  - question: "想优化哪部分？"
+    field: scope
+    options: ["标题关键词", "主图/车图", "详情页内容", "全面优化"]
+  - question: "这个商品目前转化如何？"
+    field: current_status
+    options: ["几乎没转化", "转化一般", "转化还行但想更好", "新品还没数据"]
+
+trigger_phrases:
+  - 优化详情页
+  - 标题优化
+  - 主图优化
+  - 详情页怎么改
+  - listing优化
+  - 商品优化
+  - 提升点击率
+
+twin_dimensions:
+  - dimension: product
+    extract_keys: [title_score, image_score, detail_score, keyword_suggestions, optimization_priority]
+  - dimension: operation
+    extract_keys: [expected_ctr_improvement, expected_conversion_improvement]
+
+system_prompt: >
+  你是一个电商商品运营专家，擅长优化商品标题、主图和详情页。
+  优化建议要同时考虑平台搜索算法（关键词覆盖、权重）和买家心理（吸引力、信任感）。
+  给出的方案要具体到可以直接执行（如具体的标题修改、主图构图建议）。
+  如果有企业资产数据，结合实际商品信息分析。
+  如果数据暂不可用，用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: product_info
+    text: "要优化哪个商品？（商品名称、链接或简单描述）"
+    allow_free_input: true
+
+  - question_id: platform
+    text: "在哪个平台？"
+    options: ["淘天", "拼多多", "抖音", "1688", "多平台"]
+
+  - question_id: scope
+    text: "想重点优化哪部分？"
+    options: ["标题和关键词", "主图和车图", "详情页内容", "全面诊断"]
+    allow_multiple: true
+
+  - question_id: current_issue
+    text: "目前最大的问题是什么？"
+    options: ["曝光多但点击少（主图问题）", "点击多但不下单（详情页问题）", "搜索排名低（标题/关键词问题）", "新品不知道怎么写", "不确定，帮我诊断"]
+    allow_free_input: true
+
+steps:
+  - step_id: diagnosis
+    name: 商品诊断
+    description: 评估当前标题、主图、详情页的问题
+    checkpoint: true
+    checkpoint_prompt: "诊断结果出来了。有没有哪些判断和你实际情况不符？或者有补充信息？"
+    prompt_template: |
+      用户的商品优化需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请诊断商品详情（如无真实数据用模拟数据标注）：
+      1. 标题诊断
+         - 关键词覆盖度评分（核心词/长尾词/属性词）
+         - 标题结构分析（是否符合平台推荐格式）
+         - 遗漏的高搜索量关键词
+      2. 主图诊断
+         - 构图和视觉吸引力评估
+         - 卖点表达是否清晰
+         - 与竞品主图对比
+      3. 详情页诊断
+         - 信息架构是否合理（卖点前置、痛点解决、信任背书）
+         - 内容完整度（是否缺少尺寸/材质/使用场景等）
+         - 买家最关心但详情页没说清楚的点
+    output_format: markdown
+
+  - step_id: optimization
+    name: 优化方案
+    description: 给出具体的优化方案
+    checkpoint: true
+    checkpoint_prompt: "优化方案出来了。你觉得哪些建议可以马上改？有什么执行上的困难？"
+    prompt_template: |
+      用户信息：{collected_info}
+      诊断结果：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请给出优化方案：
+      1. 标题优化
+         - 建议新标题（可直接复制）
+         - 关键词调整说明
+      2. 主图优化
+         - 5 张主图的内容建议（每张该展示什么）
+         - 构图和文案指导
+      3. 详情页优化
+         - 推荐的内容结构（从上到下的排列顺序）
+         - 每个模块的内容要点
+         - 需要新增的内容
+      4. 优化前后预期对比（点击率、转化率提升预估）
+    output_format: markdown
+
+  - step_id: ab_test_plan
+    name: 测试与跟踪
+    description: 设计 A/B 测试方案验证优化效果
+    prompt_template: |
+      用户信息：{collected_info}
+      优化方案：{previous_results}
+
+      请设计测试计划：
+      1. 建议先改什么、后改什么（改动优先级）
+      2. A/B 测试方案（如何对比优化前后效果）
+      3. 数据监控指标（看什么数据、观察多久）
+      4. 效果不达预期时的备选方案
+    output_format: markdown
+
+capture_prompt: >
+  商品优化方案做好了。你的商品信息和优化重点我都记住了。
+  建议每次上新品或转化率下降时做一次诊断。

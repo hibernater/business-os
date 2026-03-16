@@ -1,0 +1,120 @@
+skill_id: profit_analysis
+skill_type: atomic
+name: 利润分析报表
+description: >
+  拆解营收和成本结构，计算真实利润率，找出最赚钱和最亏钱的商品，
+  帮你搞清楚钱到底赚在哪、亏在哪。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "dollar-sign"
+usage_count: 1050
+
+quick_setup:
+  - question: "你想分析哪个周期的利润？"
+    field: period
+    options: ["本月", "上月", "最近3个月", "最近半年"]
+  - question: "你最关心哪个层面的利润？"
+    field: focus
+    options: ["整体利润率", "单品利润", "渠道利润对比", "费用明细"]
+
+trigger_phrases:
+  - 利润分析
+  - 利润报表
+  - 赚了多少钱
+  - 利润率
+  - 成本利润
+  - 盈亏分析
+  - 毛利分析
+
+twin_dimensions:
+  - dimension: financial
+    extract_keys: [total_revenue, total_cost, gross_profit, net_profit, gross_margin, net_margin, top_profit_products, loss_products]
+  - dimension: product
+    extract_keys: [product_profit_ranking, margin_by_category]
+
+system_prompt: >
+  你是一个电商财务分析师，帮中小企业老板算清楚真实的利润情况。
+  分析要全面考虑所有成本项，不只是进货成本，还有平台扣点、物流、推广、人工等。
+  重点帮老板发现看起来卖得好但其实不赚钱以及被忽视的利润来源。
+  如果有企业资产数据，结合实际财务数据分析。
+  如果数据暂不可用，用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: period
+    text: "分析哪个时间段的利润？"
+    options: ["本月至今", "上月", "最近3个月", "最近半年", "自定义"]
+    allow_free_input: true
+
+  - question_id: platforms
+    text: "包含哪些平台的数据？"
+    options: ["全部平台", "淘天", "拼多多", "1688", "抖音"]
+    allow_multiple: true
+
+  - question_id: detail_level
+    text: "你希望多细的分析？"
+    options: ["整体概况就行", "按品类拆分", "按单品拆分", "按渠道拆分", "越细越好"]
+
+steps:
+  - step_id: revenue_cost
+    name: 营收与成本拆解
+    description: 全面拆解收入和各项成本
+    checkpoint: true
+    checkpoint_prompt: "营收和成本结构出来了。有没有哪项成本我漏算了？或者数据和你实际差很多？"
+    prompt_template: |
+      用户的利润分析需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请完成营收和成本拆解（如无真实数据用模拟数据标注）：
+      1. 营收汇总（总营收、各平台/品类占比）
+      2. 成本结构拆解表：
+         - 商品成本（采购/生产）
+         - 物流成本（快递/包装）
+         - 平台费用（扣点/保证金/技术服务费）
+         - 推广费用（直通车/引力魔方/直播投放）
+         - 人工成本（工资/社保分摊）
+         - 其他（房租/水电/软件工具等分摊）
+      3. 毛利和净利计算（附毛利率、净利率）
+      4. 各成本项占营收比例
+    output_format: markdown
+
+  - step_id: profit_breakdown
+    name: 利润结构分析
+    description: 按商品/品类/渠道拆分利润
+    checkpoint: true
+    checkpoint_prompt: "利润拆分做好了。有没有让你意外的发现？"
+    prompt_template: |
+      用户信息：{collected_info}
+      营收成本数据：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请做利润结构分析：
+      1. 商品利润排名 Top 10 / Bottom 10（营收、利润、利润率）
+      2. 品类利润贡献分析（哪些品类是利润引擎、哪些在拖后腿）
+      3. 渠道利润对比（各平台扣完费后的真实利润）
+      4. 亏损预警（正在亏钱的商品/品类）
+      5. 隐藏利润源（被忽视但利润率高的商品）
+    output_format: markdown
+
+  - step_id: optimization
+    name: 利润优化建议
+    description: 给出提升利润的具体方案
+    prompt_template: |
+      用户信息：{collected_info}
+      完整分析：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请给出利润优化建议：
+      1. 立即止损（哪些亏损商品要调价或下架）
+      2. 成本优化（哪些成本可以降，降多少，怎么降）
+      3. 利润结构优化（应该多卖什么、少卖什么）
+      4. 推广效率优化（ROI 最高和最低的推广在哪）
+      5. 预估优化后的利润改善（月增利润预估）
+    output_format: markdown
+
+capture_prompt: >
+  利润分析完成了。你的成本结构和利润关注点我都记住了。
+  建议每月做一次利润分析，持续追踪盈利健康度。

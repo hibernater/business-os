@@ -1,0 +1,111 @@
+skill_id: competitor_monitor
+skill_type: atomic
+name: 竞品监控分析
+description: >
+  持续追踪竞品的价格变动、新品动态、营销策略和评价变化，
+  及时发现威胁和机会，辅助经营决策。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "search"
+usage_count: 890
+
+quick_setup:
+  - question: "你最关注竞品的哪方面？"
+    field: focus
+    options: ["价格变动", "新品上架", "营销活动", "评价口碑", "全面监控"]
+  - question: "你有几个主要竞争对手？"
+    field: competitor_count
+    options: ["1-3个", "3-5个", "5-10个", "10个以上"]
+
+trigger_phrases:
+  - 竞品分析
+  - 竞品监控
+  - 竞争对手
+  - 看看对手在干嘛
+  - 竞品动态
+  - 对手价格
+  - 竞品上新
+
+twin_dimensions:
+  - dimension: product
+    extract_keys: [competitor_count, price_changes, new_products_detected, threat_level, opportunity_signals]
+
+system_prompt: >
+  你是一个竞品情报分析专家，帮中小企业老板追踪和分析竞争对手动态。
+  分析要有结论性判断（是威胁还是机会），不要只罗列数据。
+  每条发现都要附上"所以你应该..."的行动建议。
+  如果有企业资产数据（产品、价格），做对比分析。
+  如果数据暂不可用，用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: competitors
+    text: "你的主要竞争对手是谁？（店铺名、品牌名或链接都行）"
+    allow_free_input: true
+
+  - question_id: my_products
+    text: "你想监控哪些品类/产品的竞品情况？"
+    allow_free_input: true
+
+  - question_id: focus
+    text: "你最关注竞品的哪些方面？"
+    options: ["价格调整", "新品上架", "促销活动", "评价变化", "排名变化", "全面监控"]
+    allow_multiple: true
+
+steps:
+  - step_id: competitor_profile
+    name: 竞品画像
+    description: 建立竞争对手的经营画像
+    checkpoint: true
+    checkpoint_prompt: "竞品画像整理好了。有没有遗漏的竞争对手？或者画像里有不准确的地方？"
+    prompt_template: |
+      用户的竞品监控需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请建立竞品画像（如无真实数据用模拟数据标注）：
+      每个竞品包含：
+      1. 基本信息（店铺名、主营品类、价格带、月销量级）
+      2. 竞争力评估（产品力、价格力、服务力、营销力 各打分 1-5）
+      3. 近期动态（新品、调价、活动等）
+      4. 与我方对比矩阵（表格形式，突出优劣势）
+    output_format: markdown
+
+  - step_id: threat_opportunity
+    name: 威胁与机会识别
+    description: 从竞品动态中提炼威胁和机会
+    checkpoint: true
+    checkpoint_prompt: "威胁和机会分析完了。有没有你已经感知到但我没提到的竞争压力？"
+    prompt_template: |
+      用户信息：{collected_info}
+      竞品画像：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请分析威胁与机会：
+      1. ⚠️ 威胁预警（竞品降价、新品抢市场、评价碾压等）
+         每条附紧急程度（高/中/低）和建议应对措施
+      2. 💡 机会信号（竞品差评暴露的需求、价格带空白、服务短板等）
+         每条附如何利用的建议
+      3. 总体竞争态势判断（一段话总结）
+    output_format: markdown
+
+  - step_id: action_plan
+    name: 应对策略
+    description: 给出具体的竞争应对方案
+    prompt_template: |
+      用户信息：{collected_info}
+      完整分析：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请给出竞争应对策略：
+      1. 本周必做（最紧急的 1-2 个应对动作）
+      2. 差异化策略（怎么避开正面竞争，找到自己的优势）
+      3. 价格策略建议（跟不跟？怎么跟？）
+      4. 持续监控计划（多久看一次、关注什么指标）
+    output_format: markdown
+
+capture_prompt: >
+  竞品分析完成了。你关注的竞争对手和监控重点我都记住了。
+  建议设置定期执行（每周一次），这样竞品有动静我第一时间告诉你。

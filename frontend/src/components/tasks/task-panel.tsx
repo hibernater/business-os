@@ -39,19 +39,31 @@ import {
 /* ── Skill → 数字孪生维度映射 ── */
 
 const SKILL_DIMENSION: Record<string, string> = {
+  // 商品
   pricing_strategy: "product",
-  product_selection: "product",
   new_product_plan: "product",
+  product_selection: "product",
   competitor_monitor: "product",
   inventory_check: "product",
+  // 客户
   customer_segmentation: "customer",
-  customer_analysis: "customer",
+  customer_lifecycle: "customer",
+  review_analysis: "customer",
+  // 运营
   inquiry_daily: "operation",
-  daily_operations_report: "operation",
   refund_analysis: "operation",
-  refund_monitor: "operation",
+  conversion_optimization: "operation",
+  promotion_planner: "operation",
+  listing_optimization: "operation",
   fetch_platform_data: "operation",
   generate_summary: "operation",
+  // 团队
+  team_performance: "team",
+  customer_service_qa: "team",
+  // 财务
+  profit_analysis: "financial",
+  cost_optimization: "financial",
+  cash_flow_forecast: "financial",
 };
 
 function getTaskDimension(task: TaskInfo): string {

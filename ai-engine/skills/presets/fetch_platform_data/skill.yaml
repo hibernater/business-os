@@ -1,0 +1,89 @@
+skill_id: fetch_platform_data
+skill_type: atomic
+name: 平台数据同步
+description: >
+  从各电商平台拉取最新的经营数据（订单、流量、客户等），
+  同步到企业资产中心，为其他 Skill 提供数据支撑。
+version: 1
+
+industry: ["通用"]
+icon: "download"
+usage_count: 1800
+
+quick_setup:
+  - question: "拉取哪个平台的数据？"
+    field: platform
+    options: ["淘天", "拼多多", "1688", "抖音", "全部平台"]
+  - question: "拉取哪些数据？"
+    field: data_type
+    options: ["全部数据", "订单数据", "流量数据", "客户数据"]
+
+trigger_phrases:
+  - 拉取数据
+  - 同步数据
+  - 更新数据
+  - 导入数据
+  - 平台数据
+  - 获取数据
+
+twin_dimensions:
+  - dimension: operation
+    extract_keys: [data_freshness, sync_status, records_synced, platforms_connected]
+
+system_prompt: >
+  你是一个数据集成助手，帮助中小企业从各电商平台拉取和整理经营数据。
+  当前阶段以数据模拟和格式化为主，未来会对接真实平台 API。
+  输出的数据要结构清晰，方便其他 Skill 直接使用。
+  如果数据暂不可用，生成合理的模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: platforms
+    text: "要同步哪些平台的数据？"
+    options: ["淘天", "拼多多", "1688", "抖音", "快手", "全部平台"]
+    allow_multiple: true
+
+  - question_id: data_types
+    text: "需要哪些类型的数据？"
+    options: ["订单数据", "流量数据", "客户数据", "商品数据", "财务数据", "全部"]
+    allow_multiple: true
+
+  - question_id: time_range
+    text: "拉取哪个时间段的数据？"
+    options: ["今天", "昨天", "最近7天", "最近30天", "自定义"]
+    allow_free_input: true
+
+steps:
+  - step_id: connect_check
+    name: 平台连接检查
+    description: 检查各平台的数据连接状态
+    prompt_template: |
+      用户的数据同步需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请检查数据连接状态并模拟同步（标注【模拟数据】）：
+      1. 各平台连接状态检查（已连接/未连接/授权过期）
+      2. 上次同步时间和数据量
+      3. 待同步数据预览（预计条数和数据量）
+    output_format: markdown
+
+  - step_id: data_sync
+    name: 数据拉取与整理
+    description: 从平台拉取数据并格式化
+    prompt_template: |
+      用户需求：{collected_info}
+      连接状态：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请模拟数据拉取并整理（标注【模拟数据】）：
+      1. 同步结果汇总（各平台各数据类型的条数）
+      2. 数据质量检查（完整性、一致性、异常值）
+      3. 关键数据摘要（核心指标快照）
+      4. 数据更新时间戳
+    output_format: markdown
+
+capture_prompt: >
+  数据同步完成。你的平台配置和数据偏好我记住了。
+  建议设置每天自动同步，保持数据最新。

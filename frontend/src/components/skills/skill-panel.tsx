@@ -26,6 +26,9 @@ import {
   Wand2,
   FileText,
   X,
+  Star,
+  MessageCircle,
+  Download,
 } from "lucide-react";
 import {
   fetchSkills,
@@ -52,6 +55,12 @@ const ICON_MAP: Record<string, typeof Search> = {
   users: Users,
   "rotate-ccw": RotateCcw,
   "bar-chart": BarChart3,
+  star: Star,
+  "message-circle": MessageCircle,
+  "file-text": FileText,
+  zap: Zap,
+  download: Download,
+  package: Package,
 };
 
 function getSkillIcon(icon: string) {

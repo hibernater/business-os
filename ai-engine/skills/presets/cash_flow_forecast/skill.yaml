@@ -1,0 +1,116 @@
+skill_id: cash_flow_forecast
+skill_type: atomic
+name: 现金流预测
+description: >
+  分析资金进出节奏，预测未来现金流状况，提前预警资金紧张风险，
+  帮你合理安排备货、推广和日常开支的资金计划。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "dollar-sign"
+usage_count: 420
+
+quick_setup:
+  - question: "你想预测多远的现金流？"
+    field: horizon
+    options: ["未来1个月", "未来3个月", "未来半年"]
+  - question: "现在资金状况怎么样？"
+    field: status
+    options: ["比较宽裕", "刚好够用", "有点紧张", "快周转不开了"]
+
+trigger_phrases:
+  - 现金流
+  - 资金预测
+  - 资金周转
+  - 资金紧张
+  - 资金计划
+  - 备货资金
+  - 钱够不够
+
+twin_dimensions:
+  - dimension: financial
+    extract_keys: [current_cash, monthly_inflow, monthly_outflow, net_cash_flow, runway_months, cash_warning]
+
+system_prompt: >
+  你是一个中小企业财务顾问，帮电商老板管好现金流。
+  对中小电商来说，现金流管理的关键在于：
+  1. 平台回款周期（资金占压）2. 备货压资金 3. 推广费支出节奏 4. 季节性波动。
+  分析要帮老板回答"未来 X 个月钱够不够用"这个核心问题。
+  如果有企业资产数据，结合实际资金数据预测。
+  如果数据暂不可用，用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: current_cash
+    text: "目前账上可动用的现金大约多少？"
+    options: ["5万以下", "5-20万", "20-50万", "50万以上", "不方便说"]
+    allow_free_input: true
+
+  - question_id: forecast_period
+    text: "想预测未来多长时间的现金流？"
+    options: ["1个月", "3个月", "6个月", "12个月"]
+
+  - question_id: upcoming_expense
+    text: "近期有没有大额支出计划？"
+    options: ["大促备货", "新品开发", "扩大推广", "招人/扩仓", "没有特别大的支出", "其他"]
+    allow_multiple: true
+    allow_free_input: true
+
+steps:
+  - step_id: cash_status
+    name: 资金现状盘点
+    description: 梳理当前资金进出情况
+    checkpoint: true
+    checkpoint_prompt: "资金盘点出来了。这些收支数据和你的实际情况大致匹配吗？"
+    prompt_template: |
+      用户的现金流分析需求：
+      {collected_info}
+
+      企业已有数据：
+      {enterprise_assets}
+
+      请盘点资金现状（如无真实数据用模拟数据标注）：
+      1. 资金余额概况（可用现金、应收账款、库存资金占压）
+      2. 月度收入节奏（各平台回款周期、回款金额预估）
+      3. 月度支出节奏（固定开支、变动开支、按时间线列出）
+      4. 净现金流（月度收入 - 月度支出）
+      5. 资金周转天数
+    output_format: markdown
+
+  - step_id: forecast
+    name: 现金流预测
+    description: 预测未来几个月的资金状况
+    checkpoint: true
+    checkpoint_prompt: "预测做好了。有没有我没考虑到的大额收支？比如你知道某个月会有大笔回款或支出？"
+    prompt_template: |
+      用户信息：{collected_info}
+      资金现状：{previous_results}
+      企业已有数据：{enterprise_assets}
+
+      请做现金流预测：
+      1. 未来各月现金流预测表（月份、预计收入、预计支出、净现金流、期末余额）
+      2. 🚨 资金预警点（哪个月可能出现资金缺口、缺多少）
+      3. 敏感性分析（如果销售下降 20%/上升 20%，现金流会怎样）
+      4. 关键影响因素（什么变化会显著影响现金流）
+    output_format: markdown
+
+  - step_id: cash_plan
+    name: 资金管理建议
+    description: 给出资金管理和应对方案
+    prompt_template: |
+      用户信息：{collected_info}
+      完整分析：{previous_results}
+
+      请给出资金管理建议：
+      1. 短期应对（如果有资金缺口，怎么解决）
+         - 加速回款的方法
+         - 延缓支出的安全做法
+         - 临时融资渠道（如适用）
+      2. 备货资金规划（什么时候备多少货、用多少钱）
+      3. 推广预算节奏（什么时候加大、什么时候收缩）
+      4. 建立资金安全垫（保留多少应急资金）
+      5. 月度资金检查清单
+    output_format: markdown
+
+capture_prompt: >
+  现金流分析完成了。你的资金状况和支出计划我都记住了。
+  建议每月初做一次现金流预测，提前 2-3 个月预判资金状况。
