@@ -1,4 +1,5 @@
 skill_id: pricing_strategy
+skill_type: atomic
 name: 智能定价策略
 description: >
   分析竞品价格、成本结构和市场定位，给出科学的定价方案，

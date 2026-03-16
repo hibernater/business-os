@@ -95,7 +95,7 @@ export function MessageList() {
 
   return (
     <div className="scrollbar-thin flex-1 overflow-y-auto bg-gray-50/50">
-      <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="mx-auto max-w-4xl px-6 py-8">
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center pt-16 pb-8">
             {/* Logo + 欢迎语 */}

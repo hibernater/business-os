@@ -159,7 +159,7 @@ export function SkillPanel({ onSwitchToChat, onSwitchToTasks }: SkillPanelProps)
 
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
-      <div className="mx-auto max-w-6xl px-6 py-6">
+      <div className="p-4 sm:p-6 space-y-0">
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -167,7 +167,7 @@ export function SkillPanel({ onSwitchToChat, onSwitchToTasks }: SkillPanelProps)
               <Package className="h-5 w-5 text-indigo-600" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Skill 工作台</h1>
+              <h1 className="text-xl font-bold text-gray-900">Skill 库</h1>
               <p className="text-[13px] text-gray-500">AI 帮你分析经营数据、自动化工作流</p>
             </div>
           </div>

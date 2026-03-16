@@ -11,13 +11,15 @@ import { TeamPanel } from "@/components/team/team-panel";
 import { DigitalTwinPanel } from "@/components/dashboard/digital-twin-panel";
 import { TaskPanel } from "@/components/tasks/task-panel";
 import { HomePanel } from "@/components/home/home-panel";
+import { WorkflowPanel } from "@/components/workflows/workflow-panel";
 
-export type ViewMode = "home" | "chat" | "skills" | "tasks" | "assets" | "team" | "twin";
+export type ViewMode = "home" | "chat" | "skills" | "workflows" | "tasks" | "assets" | "team" | "twin";
 
 const VIEW_TITLES: Record<ViewMode, string> = {
   home: "首页",
   chat: "对话",
-  skills: "Skill 工作台",
+  skills: "Skill 库",
+  workflows: "工作流",
   tasks: "任务管理",
   assets: "企业资产",
   team: "团队管理",
@@ -96,6 +98,7 @@ export function ChatLayout() {
           {view === "skills" && (
             <SkillPanel onSwitchToChat={() => setView("chat")} onSwitchToTasks={() => setView("tasks")} />
           )}
+          {view === "workflows" && <WorkflowPanel />}
           {view === "tasks" && <TaskPanel />}
           {view === "assets" && <AssetPanel />}
           {view === "twin" && <DigitalTwinPanel />}

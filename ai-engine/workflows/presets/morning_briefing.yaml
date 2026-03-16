@@ -1,0 +1,61 @@
+workflow_id: morning_briefing
+name: 晨间经营简报
+description: >
+  每天早上自动拉取平台数据、生成经营日报、检查退款情况，
+  一站式了解昨日经营全貌。
+trigger_type: scheduled
+cron_expr: "0 9 * * *"
+
+nodes:
+  - id: node_1
+    type: skill
+    label: 拉取平台数据
+    skill_id: fetch_platform_data
+    config: {}
+
+  - id: node_2
+    type: skill
+    label: 每日经营看板
+    skill_id: inquiry_daily
+    config: {}
+
+  - id: node_3
+    type: condition
+    label: 退款率是否异常
+    skill_id: null
+    config:
+      expression: "退款率 > 5%"
+
+  - id: node_4
+    type: skill
+    label: 退款退货分析
+    skill_id: refund_analysis
+    config: {}
+
+  - id: node_5
+    type: skill
+    label: 生成汇总报告
+    skill_id: generate_summary
+    config: {}
+
+edges:
+  - id: e1
+    from: node_1
+    to: node_2
+    condition: null
+  - id: e2
+    from: node_2
+    to: node_3
+    condition: null
+  - id: e3
+    from: node_3
+    to: node_4
+    condition: "退款率异常时"
+  - id: e4
+    from: node_3
+    to: node_5
+    condition: "正常时"
+  - id: e5
+    from: node_4
+    to: node_5
+    condition: null

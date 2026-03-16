@@ -81,6 +81,7 @@ async def list_skills():
             "skill_id": s.skill_id,
             "name": s.name,
             "description": s.description,
+            "skill_type": s.skill_type,
             "version": s.version,
             "trigger_phrases": s.trigger_phrases,
             "intake_count": len(s.intake),
@@ -270,6 +271,51 @@ Skill描述：{req.description}
     ]
     response = await agent.llm.chat(messages)
     return {"status": "ok", "yaml_content": response.content}
+
+
+class WorkflowDecomposeRequest(BaseModel):
+    description: str
+    enterprise_id: str = ""
+
+
+@app.post("/api/workflows/decompose")
+async def decompose_workflow_api(req: WorkflowDecomposeRequest):
+    """自然语言 → 工作流结构"""
+    from workflow.decomposer import decompose_workflow
+    agent = get_agent()
+    llm = agent.llm if agent else None
+    result = await decompose_workflow(req.description, llm)
+    return result
+
+
+@app.post("/api/workflows/heartbeat")
+async def workflow_heartbeat(req: dict):
+    """Process one heartbeat tick for a running workflow execution."""
+    from workflow.executor import heartbeat_tick
+    execution = req.get("execution", {})
+    workflow = req.get("workflow", {})
+    agent = get_agent()
+    llm = agent.llm if agent else None
+    try:
+        event = await heartbeat_tick(execution, workflow, llm)
+        return {"status": "ok", "event": event}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/api/workflows/presets")
+async def list_preset_workflows():
+    """列出预设工作流模板"""
+    import yaml
+    from pathlib import Path
+    presets_dir = Path(__file__).parent / "workflows" / "presets"
+    results = []
+    if presets_dir.exists():
+        for f in sorted(presets_dir.glob("*.yaml")):
+            with open(f, "r", encoding="utf-8") as fh:
+                data = yaml.safe_load(fh)
+                results.append(data)
+    return {"presets": results}
 
 
 @app.post("/api/chat/stream")

@@ -478,6 +478,8 @@ export interface TaskInfo {
   completedAt: string | null;
   durationMs: number | null;
   updatedAt: string | null;
+  workflowExecutionId: string | null;
+  workflowNodeId: string | null;
 }
 
 export interface TaskListResponse {
@@ -554,6 +556,274 @@ export async function deleteTask(token: string, taskId: string): Promise<{ statu
     headers: { Authorization: `Bearer ${token}` },
   });
   return (await res.json()) as { status: string; message?: string };
+}
+
+// ========== 工作流 ==========
+
+export interface WorkflowNode {
+  id: string;
+  type: "skill" | "condition" | "notify";
+  label: string;
+  skill_id: string | null;
+  config: Record<string, unknown>;
+}
+
+export interface WorkflowEdge {
+  id: string;
+  from: string;
+  to: string;
+  condition: string | null;
+}
+
+export interface WorkflowInfo {
+  id: string;
+  enterpriseId: string;
+  name: string;
+  description: string;
+  status: "draft" | "active" | "paused";
+  triggerType: "manual" | "scheduled" | "event";
+  cronExpr: string | null;
+  nodesJson: string;
+  edgesJson: string;
+  createdAt: string;
+  updatedAt: string;
+  lastRunAt: string | null;
+  runCount: number;
+}
+
+export interface WorkflowListResponse {
+  workflows: WorkflowInfo[];
+  total: number;
+  active: number;
+}
+
+export async function fetchWorkflows(
+  token: string,
+  status?: string,
+): Promise<WorkflowListResponse> {
+  const params = status ? `?status=${status}` : "";
+  const res = await fetch(`${BASE_URL}/api/workflows${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    if (res.status === 401) handleUnauthorized();
+    throw new Error(`获取工作流列表失败: ${res.status}`);
+  }
+  return (await res.json()) as WorkflowListResponse;
+}
+
+export async function fetchWorkflow(
+  token: string,
+  id: string,
+): Promise<WorkflowInfo> {
+  const res = await fetch(`${BASE_URL}/api/workflows/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`获取工作流详情失败: ${res.status}`);
+  return (await res.json()) as WorkflowInfo;
+}
+
+export async function createWorkflow(
+  token: string,
+  data: {
+    name: string;
+    description: string;
+    triggerType?: string;
+    cronExpr?: string;
+    nodesJson: string;
+    edgesJson: string;
+  },
+): Promise<{ status: string; workflow: WorkflowInfo }> {
+  const res = await fetch(`${BASE_URL}/api/workflows`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`创建工作流失败: ${res.status}`);
+  return (await res.json()) as { status: string; workflow: WorkflowInfo };
+}
+
+export async function updateWorkflow(
+  token: string,
+  id: string,
+  data: Partial<{
+    name: string;
+    description: string;
+    status: string;
+    triggerType: string;
+    cronExpr: string;
+    nodesJson: string;
+    edgesJson: string;
+  }>,
+): Promise<{ status: string; workflow: WorkflowInfo }> {
+  const res = await fetch(`${BASE_URL}/api/workflows/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`更新工作流失败: ${res.status}`);
+  return (await res.json()) as { status: string; workflow: WorkflowInfo };
+}
+
+export async function deleteWorkflow(
+  token: string,
+  id: string,
+): Promise<{ status: string }> {
+  const res = await fetch(`${BASE_URL}/api/workflows/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return (await res.json()) as { status: string };
+}
+
+export async function activateWorkflow(
+  token: string,
+  id: string,
+): Promise<{ status: string; workflow: WorkflowInfo }> {
+  const res = await fetch(`${BASE_URL}/api/workflows/${id}/activate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`激活工作流失败: ${res.status}`);
+  return (await res.json()) as { status: string; workflow: WorkflowInfo };
+}
+
+export async function decomposeWorkflow(
+  token: string,
+  description: string,
+): Promise<{
+  status: string;
+  mode: string;
+  workflow: {
+    name: string;
+    description: string;
+    trigger_type: string;
+    cron_expr: string | null;
+    nodes: WorkflowNode[];
+    edges: WorkflowEdge[];
+  };
+}> {
+  const res = await fetch(`${BASE_URL}/api/workflows/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ description }),
+  });
+  if (!res.ok) throw new Error(`拆解工作流失败: ${res.status}`);
+  return (await res.json()) as {
+    status: string;
+    mode: string;
+    workflow: {
+      name: string;
+      description: string;
+      trigger_type: string;
+      cron_expr: string | null;
+      nodes: WorkflowNode[];
+      edges: WorkflowEdge[];
+    };
+  };
+}
+
+// ========== 工作流执行 ==========
+
+export interface WorkflowExecutionInfo {
+  id: string;
+  workflowId: string;
+  workflowName: string;
+  enterpriseId: string;
+  status: "idle" | "running" | "waiting_input" | "paused" | "completed" | "failed";
+  currentNodeId: string | null;
+  contextJson: string;
+  completedNodesJson: string;
+  heartbeatIntervalSec: number;
+  lastHeartbeatAt: string | null;
+  nextHeartbeatAt: string | null;
+  pendingInteraction: string | null;
+  cycleCount: number;
+  startedAt: string;
+  completedAt: string | null;
+  updatedAt: string;
+  errorMessage: string | null;
+  tasks?: TaskInfo[];
+}
+
+export interface PendingInteraction {
+  type: string;
+  node_id: string;
+  expression?: string;
+  evaluation?: string;
+  options?: { edge_id: string; label: string; target: string }[];
+  message: string;
+}
+
+export async function startWorkflowExecution(
+  token: string,
+  workflowId: string,
+): Promise<{ status: string; execution: WorkflowExecutionInfo }> {
+  const res = await fetch(`${BASE_URL}/api/workflows/${workflowId}/start`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`启动工作流失败: ${res.status}`);
+  return (await res.json()) as { status: string; execution: WorkflowExecutionInfo };
+}
+
+export async function fetchWorkflowExecutions(
+  token: string,
+  status?: string,
+): Promise<{ executions: WorkflowExecutionInfo[]; running: number; waitingInput: number }> {
+  const params = status ? `?wfStatus=${status}` : "";
+  const res = await fetch(`${BASE_URL}/api/workflows/executions${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`获取执行列表失败: ${res.status}`);
+  return (await res.json()) as { executions: WorkflowExecutionInfo[]; running: number; waitingInput: number };
+}
+
+export async function fetchWorkflowExecution(
+  token: string,
+  execId: string,
+): Promise<WorkflowExecutionInfo> {
+  const res = await fetch(`${BASE_URL}/api/workflows/executions/${execId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`获取执行详情失败: ${res.status}`);
+  return (await res.json()) as WorkflowExecutionInfo;
+}
+
+export async function interactWithExecution(
+  token: string,
+  execId: string,
+  response: string,
+): Promise<{ status: string; execution: WorkflowExecutionInfo }> {
+  const res = await fetch(`${BASE_URL}/api/workflows/executions/${execId}/interact`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ response }),
+  });
+  if (!res.ok) throw new Error(`交互失败: ${res.status}`);
+  return (await res.json()) as { status: string; execution: WorkflowExecutionInfo };
+}
+
+export async function pauseWorkflowExecution(
+  token: string,
+  execId: string,
+): Promise<{ status: string }> {
+  const res = await fetch(`${BASE_URL}/api/workflows/executions/${execId}/pause`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return (await res.json()) as { status: string };
+}
+
+export async function resumeWorkflowExecution(
+  token: string,
+  execId: string,
+): Promise<{ status: string }> {
+  const res = await fetch(`${BASE_URL}/api/workflows/executions/${execId}/resume`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return (await res.json()) as { status: string };
 }
 
 // ========== 数字孪生 ==========

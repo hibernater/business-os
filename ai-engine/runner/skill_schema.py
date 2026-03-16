@@ -82,6 +82,7 @@ class SkillDefinition:
     skill_id: str
     name: str
     description: str
+    skill_type: str = "atomic"  # atomic | composite (reserved)
     trigger_phrases: list[str] = field(default_factory=list)
     system_prompt: str = ""
     intake: list[IntakeQuestion] = field(default_factory=list)

@@ -56,6 +56,7 @@ def load_skill_from_yaml(yaml_path: str | Path) -> SkillDefinition:
         skill_id=data["skill_id"],
         name=data["name"],
         description=data.get("description", ""),
+        skill_type=data.get("skill_type", "atomic"),
         trigger_phrases=data.get("trigger_phrases", []),
         system_prompt=data.get("system_prompt", ""),
         intake=intake,

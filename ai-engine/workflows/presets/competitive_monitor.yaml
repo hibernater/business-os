@@ -1,0 +1,61 @@
+workflow_id: competitive_monitor
+name: 竞品监控与应对
+description: >
+  定期监控竞品动态，分析对定价和选品的影响，
+  自动生成应对策略建议。
+trigger_type: scheduled
+cron_expr: "0 10 * * 1"
+
+nodes:
+  - id: node_1
+    type: skill
+    label: 竞品监控
+    skill_id: competitor_monitor
+    config: {}
+
+  - id: node_2
+    type: condition
+    label: 竞品有价格变动
+    skill_id: null
+    config:
+      expression: "竞品价格变动 > 0"
+
+  - id: node_3
+    type: skill
+    label: 智能定价策略
+    skill_id: pricing_strategy
+    config: {}
+
+  - id: node_4
+    type: skill
+    label: 爆款选品分析
+    skill_id: product_selection
+    config: {}
+
+  - id: node_5
+    type: skill
+    label: 生成汇总报告
+    skill_id: generate_summary
+    config: {}
+
+edges:
+  - id: e1
+    from: node_1
+    to: node_2
+    condition: null
+  - id: e2
+    from: node_2
+    to: node_3
+    condition: "有价格变动时"
+  - id: e3
+    from: node_2
+    to: node_5
+    condition: "无变动时"
+  - id: e4
+    from: node_3
+    to: node_4
+    condition: null
+  - id: e5
+    from: node_4
+    to: node_5
+    condition: null

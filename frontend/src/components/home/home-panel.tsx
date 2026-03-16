@@ -251,9 +251,9 @@ const TONE_ICON: Record<Brief["tone"], React.ReactNode> = {
 };
 
 const CAPSULES = [
-  { label: "跑个经营日报", icon: Cog },
-  { label: "分析客户数据", icon: Users },
-  { label: "上传文档生成 Skill", icon: ArrowRight },
+  { label: "跑个经营日报", icon: Cog, target: "skills" },
+  { label: "分析客户数据", icon: Users, target: "skills" },
+  { label: "创建工作流", icon: Sparkles, target: "workflows" },
 ];
 
 function MyWorkSection({ tasks, onNavigate }: { tasks: TaskInfo[]; onNavigate: (v: string) => void }) {
@@ -321,7 +321,7 @@ function MyWorkSection({ tasks, onNavigate }: { tasks: TaskInfo[]; onNavigate: (
           {CAPSULES.map((c) => (
             <button
               key={c.label}
-              onClick={() => onNavigate("skills")}
+              onClick={() => onNavigate(c.target)}
               className="flex items-center gap-1.5 rounded-full border border-gray-100 bg-gray-50 px-3 py-1 text-[12px] text-gray-500 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
             >
               <c.icon className="h-3 w-3" />
@@ -572,10 +572,16 @@ export function HomePanel({ onNavigate }: HomePanelProps) {
             查看完整孪生数据 <ArrowRight className="h-3 w-3" />
           </button>
           <button
+            onClick={() => onNavigate("workflows")}
+            className="flex items-center gap-1 transition-colors hover:text-gray-500"
+          >
+            工作流 <ArrowRight className="h-3 w-3" />
+          </button>
+          <button
             onClick={() => onNavigate("skills")}
             className="flex items-center gap-1 transition-colors hover:text-gray-500"
           >
-            Skill 工作台 <ArrowRight className="h-3 w-3" />
+            Skill 库 <ArrowRight className="h-3 w-3" />
           </button>
         </div>
       </div>

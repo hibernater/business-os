@@ -393,7 +393,7 @@ export function AssetPanel() {
 
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
-      <div className="mx-auto max-w-6xl px-6 py-6">
+      <div className="p-4 sm:p-6 space-y-0">
         {/* 标题 */}
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-3">

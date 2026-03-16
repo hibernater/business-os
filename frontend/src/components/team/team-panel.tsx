@@ -54,7 +54,7 @@ export function TeamPanel() {
 
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
-      <div className="mx-auto max-w-6xl px-6 py-6">
+      <div className="p-4 sm:p-6 space-y-0">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100">
             <Users className="h-5 w-5 text-violet-600" />

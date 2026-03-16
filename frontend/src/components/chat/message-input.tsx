@@ -40,7 +40,7 @@ export function MessageInput() {
 
   return (
     <div className="border-t border-gray-200 bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-4">
+      <div className="mx-auto max-w-4xl px-6 py-4">
         <div className="rounded-2xl border border-gray-200 bg-gray-50/80 transition-colors focus-within:border-blue-400 focus-within:bg-white focus-within:shadow-sm">
           <textarea
             ref={textareaRef}

@@ -13,6 +13,7 @@ import {
   Bell,
   Zap,
   ListTodo,
+  GitBranch,
   Home,
   ChevronDown,
   ChevronRight,
@@ -108,9 +109,15 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
 
           <NavItem
             icon={<Package className="h-4 w-4" />}
-            label="Skill 工作台"
+            label="Skill 库"
             active={currentView === "skills"}
             onClick={() => onViewChange("skills")}
+          />
+          <NavItem
+            icon={<GitBranch className="h-4 w-4" />}
+            label="工作流"
+            active={currentView === "workflows"}
+            onClick={() => onViewChange("workflows")}
           />
           <NavItem
             icon={<ListTodo className="h-4 w-4" />}

@@ -1,4 +1,5 @@
 skill_id: customer_segmentation
+skill_type: atomic
 name: 客户分群运营
 description: >
   基于客户购买行为和特征进行分群，针对不同群体给出差异化运营策略，

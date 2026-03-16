@@ -57,6 +57,12 @@ public class SkillExecution {
     @Column(name = "schedule_id")
     private String scheduleId;
 
+    @Column(name = "workflow_execution_id")
+    private String workflowExecutionId;
+
+    @Column(name = "workflow_node_id")
+    private String workflowNodeId;
+
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
@@ -110,6 +116,8 @@ public class SkillExecution {
     public String getStateUpdates() { return stateUpdates; }
     public String getDecisionRecord() { return decisionRecord; }
     public String getScheduleId() { return scheduleId; }
+    public String getWorkflowExecutionId() { return workflowExecutionId; }
+    public String getWorkflowNodeId() { return workflowNodeId; }
     public String getErrorMessage() { return errorMessage; }
     public String getOutputSummary() { return outputSummary; }
     public LocalDateTime getStartedAt() { return startedAt; }
@@ -134,6 +142,8 @@ public class SkillExecution {
     public void setStateUpdates(String stateUpdates) { this.stateUpdates = stateUpdates; }
     public void setDecisionRecord(String decisionRecord) { this.decisionRecord = decisionRecord; }
     public void setScheduleId(String scheduleId) { this.scheduleId = scheduleId; }
+    public void setWorkflowExecutionId(String workflowExecutionId) { this.workflowExecutionId = workflowExecutionId; }
+    public void setWorkflowNodeId(String workflowNodeId) { this.workflowNodeId = workflowNodeId; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     public void setOutputSummary(String outputSummary) { this.outputSummary = outputSummary; }
     public void setStartedAt(LocalDateTime startedAt) { this.startedAt = startedAt; }
@@ -157,6 +167,8 @@ public class SkillExecution {
         map.put("completedAt", completedAt != null ? completedAt.toString() : null);
         map.put("durationMs", durationMs);
         map.put("updatedAt", updatedAt != null ? updatedAt.toString() : null);
+        map.put("workflowExecutionId", workflowExecutionId);
+        map.put("workflowNodeId", workflowNodeId);
         return map;
     }
 }

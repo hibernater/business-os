@@ -132,6 +132,17 @@ public class AiEngineClient {
                 .block();
     }
 
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> decomposeWorkflow(String description) {
+        return webClient.post()
+                .uri("/api/workflows/decompose")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("description", description))
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+    }
+
     public String extractTextContent(String ndjsonLine) {
         try {
             JsonNode node = objectMapper.readTree(ndjsonLine);

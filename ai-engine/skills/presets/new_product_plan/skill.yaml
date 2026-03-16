@@ -1,4 +1,5 @@
 skill_id: new_product_plan
+skill_type: atomic
 name: 新品开发方案
 description: >
   基于参考款链接或图片，自动完成市场调研、卖点提炼、改款方向建议，

@@ -23,6 +23,11 @@ frontend/out/
 # Environment
 .env
 
+# Tunnel
+.tunnel-url
+.tunnel.pid
+tunnel.sh
+
 # OS
 .DS_Store
 Thumbs.db
