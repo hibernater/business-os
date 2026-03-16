@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useChatStore } from "@/stores/chat-store";
+import { isDesktop } from "@/lib/desktop";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import type { ViewMode } from "./chat-layout";
 
@@ -88,7 +89,7 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
         </div>
         <div>
           <span className="text-[16px] font-bold text-gray-900">商家OS</span>
-          <span className="ml-1.5 text-[11px] text-gray-400">v1.0</span>
+          <span className="ml-1.5 text-[11px] text-gray-400">{isDesktop() ? "桌面版" : "v1.0"}</span>
         </div>
       </div>
 
