@@ -1,8 +1,8 @@
 workflow_id: customer_growth
 name: 客户增长分析
 description: >
-  分析客户分群数据，识别高价值客户，结合定价策略优化，
-  形成完整的客户增长方案。
+  分析客户分群和生命周期数据，识别高价值客户，制定定价策略，
+  需要老板审批后执行，最后通知团队。
 trigger_type: manual
 cron_expr: null
 
@@ -14,23 +14,46 @@ nodes:
     config: {}
 
   - id: node_2
+    type: skill
+    label: 客户生命周期管理
+    skill_id: customer_lifecycle
+    config: {}
+
+  - id: node_3
     type: condition
     label: 是否有高价值客户
     skill_id: null
     config:
       expression: "VIP客户数 > 0"
 
-  - id: node_3
+  - id: node_4
     type: skill
     label: 智能定价策略
     skill_id: pricing_strategy
     config: {}
 
-  - id: node_4
+  - id: node_5
+    type: approval
+    label: 老板审批定价方案
+    skill_id: null
+    config:
+      approver: 老板
+      subject: 基于客户分群的定价策略调整方案
+
+  - id: node_6
     type: skill
-    label: 生成汇总报告
+    label: 智能汇总报告
     skill_id: generate_summary
     config: {}
+
+  - id: node_7
+    type: notification
+    label: 通知运营团队
+    skill_id: null
+    config:
+      channel: system
+      message_template: "📢 客户增长分析已完成并通过审批：{prev_result}"
+      recipients: ["运营组", "客服组"]
 
 edges:
   - id: e1
@@ -40,12 +63,24 @@ edges:
   - id: e2
     from: node_2
     to: node_3
-    condition: "有VIP客户时"
+    condition: null
   - id: e3
-    from: node_2
-    to: node_4
-    condition: "暂无VIP时"
-  - id: e4
     from: node_3
     to: node_4
+    condition: "有VIP客户时"
+  - id: e4
+    from: node_3
+    to: node_6
+    condition: "暂无VIP时"
+  - id: e5
+    from: node_4
+    to: node_5
+    condition: null
+  - id: e6
+    from: node_5
+    to: node_6
+    condition: "通过"
+  - id: e7
+    from: node_6
+    to: node_7
     condition: null

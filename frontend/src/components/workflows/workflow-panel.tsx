@@ -20,6 +20,13 @@ import {
   Activity,
   Loader2,
   CheckCircle2,
+  Bell,
+  Timer,
+  Globe,
+  Users,
+  ShieldCheck,
+  Repeat,
+  Workflow,
 } from "lucide-react";
 import {
   fetchWorkflows,
@@ -86,6 +93,11 @@ function localDecompose(desc: string): GeneratedWorkflow {
   if (matched.length === 0) matched.push({ id: "inquiry_daily", name: "每日经营看板" });
 
   const hasCondition = ["如果", "当", "超过", "低于", "变动"].some((kw) => d.includes(kw));
+  const hasApproval = ["审批", "批准", "审核", "老板确认"].some((kw) => d.includes(kw));
+  const hasNotify = ["通知", "推送", "告知", "发给", "企微", "钉钉"].some((kw) => d.includes(kw));
+  const hasWait = ["等到", "等待", "隔一段时间", "小时后"].some((kw) => d.includes(kw));
+  const hasHuman = ["让人", "手动", "人工", "安排人", "分配给"].some((kw) => d.includes(kw));
+
   const nodes: WorkflowNode[] = [];
   const edges: WorkflowEdge[] = [];
   let eid = 0;
@@ -104,10 +116,40 @@ function localDecompose(desc: string): GeneratedWorkflow {
     }
   });
 
+  let lastId = nodes[nodes.length - 1].id;
+
+  if (hasApproval) {
+    const aid = `approval_${nodes.length + 1}`;
+    nodes.push({ id: aid, type: "approval", label: "审批确认", skill_id: null, config: { approver: "负责人", subject: "工作流结果需要审批" } });
+    edges.push({ id: `e${++eid}`, from: lastId, to: aid, condition: null });
+    lastId = aid;
+  }
+
+  if (hasHuman) {
+    const hid = `human_${nodes.length + 1}`;
+    nodes.push({ id: hid, type: "human_task", label: "人工处理", skill_id: null, config: { assignee: "负责人", description: "请根据分析结果执行后续操作" } });
+    edges.push({ id: `e${++eid}`, from: lastId, to: hid, condition: null });
+    lastId = hid;
+  }
+
+  if (hasWait) {
+    const wid = `wait_${nodes.length + 1}`;
+    nodes.push({ id: wid, type: "wait", label: "等待执行窗口", skill_id: null, config: { wait_type: "duration", duration_minutes: 60, reason: "等待合适时机" } });
+    edges.push({ id: `e${++eid}`, from: lastId, to: wid, condition: null });
+    lastId = wid;
+  }
+
   const summaryId = `node_${nodes.length + 1}`;
-  nodes.push({ id: summaryId, type: "skill", label: "生成汇总报告", skill_id: "generate_summary", config: {} });
-  const lastSkillNode = [...nodes].reverse().find((n) => n.id !== summaryId && n.type === "skill");
-  if (lastSkillNode) edges.push({ id: `e${++eid}`, from: lastSkillNode.id, to: summaryId, condition: null });
+  nodes.push({ id: summaryId, type: "skill", label: "智能汇总报告", skill_id: "generate_summary", config: {} });
+  edges.push({ id: `e${++eid}`, from: lastId, to: summaryId, condition: null });
+  lastId = summaryId;
+
+  if (hasNotify) {
+    const nid = `notify_${nodes.length + 1}`;
+    const channel = d.includes("企微") ? "企微" : d.includes("钉钉") ? "钉钉" : "system";
+    nodes.push({ id: nid, type: "notification", label: "发送通知", skill_id: null, config: { channel, message_template: "工作流执行完毕", recipients: [] } });
+    edges.push({ id: `e${++eid}`, from: lastId, to: nid, condition: null });
+  }
 
   const isScheduled = ["每天", "每周", "每月", "定时", "自动"].some((kw) => d.includes(kw));
   const nameParts = matched.slice(0, 2).map((s) => s.name);
@@ -613,6 +655,18 @@ function WorkflowCreator({
 
 /* ==================== Flow Preview ==================== */
 
+const NODE_STYLE: Record<string, { icon: typeof Zap; border: string; bg: string; text: string }> = {
+  skill:        { icon: Zap,          border: "border-blue-200",   bg: "bg-blue-50",    text: "text-blue-700" },
+  condition:    { icon: AlertCircle,  border: "border-amber-200",  bg: "bg-amber-50",   text: "text-amber-700" },
+  human_task:   { icon: Users,        border: "border-violet-200", bg: "bg-violet-50",  text: "text-violet-700" },
+  approval:     { icon: ShieldCheck,  border: "border-rose-200",   bg: "bg-rose-50",    text: "text-rose-700" },
+  notification: { icon: Bell,         border: "border-emerald-200",bg: "bg-emerald-50", text: "text-emerald-700" },
+  wait:         { icon: Timer,        border: "border-gray-200",   bg: "bg-gray-50",    text: "text-gray-600" },
+  api_call:     { icon: Globe,        border: "border-cyan-200",   bg: "bg-cyan-50",    text: "text-cyan-700" },
+  sub_workflow: { icon: Workflow,     border: "border-indigo-200", bg: "bg-indigo-50",  text: "text-indigo-700" },
+  loop:         { icon: Repeat,       border: "border-orange-200", bg: "bg-orange-50",  text: "text-orange-700" },
+};
+
 function FlowPreview({
   nodes,
   edges,
@@ -630,6 +684,8 @@ function FlowPreview({
         const edge = i > 0
           ? edges.find((e) => e.to === node.id)
           : null;
+        const style = NODE_STYLE[node.type] || NODE_STYLE.skill;
+        const Icon = style.icon;
         return (
           <div key={node.id} className="flex items-center gap-2">
             {i > 0 && (
@@ -641,18 +697,10 @@ function FlowPreview({
               </div>
             )}
             <div
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm ${
-                node.type === "condition"
-                  ? "border border-amber-200 bg-amber-50 text-amber-700"
-                  : "border border-blue-200 bg-blue-50 text-blue-700"
-              }`}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm ${style.border} ${style.bg} ${style.text}`}
             >
-              {node.type === "condition" ? (
-                <AlertCircle className="h-3.5 w-3.5" />
-              ) : (
-                <Zap className="h-3.5 w-3.5" />
-              )}
-              {node.label}
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate max-w-[120px]">{node.label}</span>
             </div>
           </div>
         );

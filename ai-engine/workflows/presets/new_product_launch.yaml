@@ -1,0 +1,116 @@
+workflow_id: new_product_launch
+name: 新品上架全流程
+description: >
+  从选品分析到上架的完整流程：市场调研 → 新品方案 → 老板审批 →
+  详情页优化 → 定价策略 → 通知团队上架。
+trigger_type: manual
+cron_expr: null
+
+nodes:
+  - id: node_1
+    type: skill
+    label: 爆款选品分析
+    skill_id: product_selection
+    config: {}
+
+  - id: node_2
+    type: skill
+    label: 新品开发方案
+    skill_id: new_product_plan
+    config: {}
+
+  - id: node_3
+    type: approval
+    label: 老板审批新品方案
+    skill_id: null
+    config:
+      approver: 老板
+      subject: 新品开发方案审批
+
+  - id: node_4
+    type: skill
+    label: 商品详情页优化
+    skill_id: listing_optimization
+    config: {}
+
+  - id: node_5
+    type: skill
+    label: 智能定价策略
+    skill_id: pricing_strategy
+    config: {}
+
+  - id: node_6
+    type: human_task
+    label: 运营上架商品
+    skill_id: null
+    config:
+      assignee: 运营
+      description: 请根据详情页和定价方案，在各平台完成商品上架
+
+  - id: node_7
+    type: wait
+    label: 等待数据积累
+    skill_id: null
+    config:
+      wait_type: duration
+      duration_minutes: 4320
+      reason: 新品上架后等待 3 天积累初始数据
+
+  - id: node_8
+    type: skill
+    label: 转化率诊断优化
+    skill_id: conversion_optimization
+    config: {}
+
+  - id: node_9
+    type: skill
+    label: 智能汇总报告
+    skill_id: generate_summary
+    config: {}
+
+  - id: node_10
+    type: notification
+    label: 通知团队新品表现
+    skill_id: null
+    config:
+      channel: system
+      message_template: "🆕 新品上架 3 天数据回顾：{prev_result}"
+      recipients: ["运营组", "老板"]
+
+edges:
+  - id: e1
+    from: node_1
+    to: node_2
+    condition: null
+  - id: e2
+    from: node_2
+    to: node_3
+    condition: null
+  - id: e3
+    from: node_3
+    to: node_4
+    condition: "通过"
+  - id: e4
+    from: node_4
+    to: node_5
+    condition: null
+  - id: e5
+    from: node_5
+    to: node_6
+    condition: null
+  - id: e6
+    from: node_6
+    to: node_7
+    condition: null
+  - id: e7
+    from: node_7
+    to: node_8
+    condition: null
+  - id: e8
+    from: node_8
+    to: node_9
+    condition: null
+  - id: e9
+    from: node_9
+    to: node_10
+    condition: null

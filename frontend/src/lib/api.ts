@@ -562,7 +562,7 @@ export async function deleteTask(token: string, taskId: string): Promise<{ statu
 
 export interface WorkflowNode {
   id: string;
-  type: "skill" | "condition" | "notify";
+  type: "skill" | "condition" | "human_task" | "approval" | "notification" | "wait" | "api_call" | "sub_workflow" | "loop";
   label: string;
   skill_id: string | null;
   config: Record<string, unknown>;

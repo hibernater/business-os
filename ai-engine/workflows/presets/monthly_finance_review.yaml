@@ -1,0 +1,109 @@
+workflow_id: monthly_finance_review
+name: 月度财务审查
+description: >
+  每月自动生成利润报表和成本分析，预测现金流，
+  需老板审批后向团队发布财务简报。
+trigger_type: scheduled
+cron_expr: "0 9 1 * *"
+
+nodes:
+  - id: node_1
+    type: skill
+    label: 平台数据同步
+    skill_id: fetch_platform_data
+    config: {}
+
+  - id: node_2
+    type: skill
+    label: 利润分析报表
+    skill_id: profit_analysis
+    config: {}
+
+  - id: node_3
+    type: skill
+    label: 成本结构优化
+    skill_id: cost_optimization
+    config: {}
+
+  - id: node_4
+    type: skill
+    label: 现金流预测
+    skill_id: cash_flow_forecast
+    config: {}
+
+  - id: node_5
+    type: condition
+    label: 是否存在资金风险
+    skill_id: null
+    config:
+      expression: "未来 3 个月内可能出现资金缺口"
+
+  - id: node_6
+    type: notification
+    label: 资金风险预警
+    skill_id: null
+    config:
+      channel: system
+      message_template: "🚨 资金风险预警：{prev_result}"
+      recipients: ["老板", "财务"]
+
+  - id: node_7
+    type: skill
+    label: 智能汇总报告
+    skill_id: generate_summary
+    config: {}
+
+  - id: node_8
+    type: approval
+    label: 老板审阅财务报告
+    skill_id: null
+    config:
+      approver: 老板
+      subject: 月度财务分析报告
+
+  - id: node_9
+    type: notification
+    label: 发布财务简报
+    skill_id: null
+    config:
+      channel: system
+      message_template: "📊 本月财务分析报告已发布：{prev_result}"
+      recipients: ["全员"]
+
+edges:
+  - id: e1
+    from: node_1
+    to: node_2
+    condition: null
+  - id: e2
+    from: node_2
+    to: node_3
+    condition: null
+  - id: e3
+    from: node_3
+    to: node_4
+    condition: null
+  - id: e4
+    from: node_4
+    to: node_5
+    condition: null
+  - id: e5
+    from: node_5
+    to: node_6
+    condition: "有资金风险"
+  - id: e6
+    from: node_5
+    to: node_7
+    condition: "无风险"
+  - id: e7
+    from: node_6
+    to: node_7
+    condition: null
+  - id: e8
+    from: node_7
+    to: node_8
+    condition: null
+  - id: e9
+    from: node_8
+    to: node_9
+    condition: "审阅通过"

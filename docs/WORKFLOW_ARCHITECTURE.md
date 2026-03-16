@@ -52,10 +52,18 @@ Workflow
 ```
 
 **节点类型（Node Types）**：
-- `start` — 起始节点
-- `end` — 结束节点
-- `skill` — 执行一个 Skill（关联 skillId）
-- `condition` — 条件分支（根据上下文走不同路径）
+
+| 类型 | 说明 | 阻塞 | config 字段 |
+|------|------|------|------------|
+| `skill` | 执行一个 AI Skill | 否 | `skill_id` |
+| `condition` | 条件分支 | 是（等用户选择） | `expression` |
+| `human_task` | 分配人工任务 | 是（等完成） | `assignee`, `description`, `deadline` |
+| `approval` | 审批节点 | 是（等审批） | `approver`, `subject`, `detail` |
+| `notification` | 发送通知 | 否（即时继续） | `channel`, `message_template`, `recipients` |
+| `wait` | 定时等待 | 是（等时间到） | `wait_type`, `duration_minutes` / `until_time`, `reason` |
+| `api_call` | 调用外部 API | 否 | `method`, `url`, `headers`, `body`, `timeout` |
+| `sub_workflow` | 触发子工作流 | 否（占位） | `workflow_id` |
+| `loop` | 循环迭代 | 否（多次心跳） | `items`, `loop_var` |
 
 **边（Edge）**：
 - `{ id, source, target, label? }` — 连接两个节点，label 用于条件分支的标签
@@ -252,12 +260,28 @@ start → 客户数据分析 → 客户分群 → condition(有高价值新客?)
   → 否: end
 ```
 
-### 6.3 竞品监控（competitive_monitor.yaml）
+### 6.3 竞品监控与应对（competitive_monitor.yaml）
 
 ```
-start → 竞品监控 → condition(价格异动?) 
-  → 是: 定价策略调整 → end
-  → 否: end
+竞品监控 → condition(重大变动?) 
+  → 是: 通知运营[notification] → 运营确认[human_task] → 定价策略 → 选品分析 → 汇总报告
+  → 否: 汇总报告
+```
+
+### 6.4 新品上架全流程（new_product_launch.yaml）
+
+```
+选品分析 → 新品方案 → 老板审批[approval] → 详情页优化 → 定价策略 → 
+运营上架[human_task] → 等待3天[wait] → 转化率诊断 → 汇总报告 → 通知团队[notification]
+```
+
+### 6.5 月度财务审查（monthly_finance_review.yaml）
+
+```
+数据同步 → 利润分析 → 成本优化 → 现金流预测 → condition(资金风险?) 
+  → 是: 资金预警[notification] → 汇总报告
+  → 否: 汇总报告
+→ 老板审阅[approval] → 发布财务简报[notification]
 ```
 
 ---
@@ -270,6 +294,7 @@ start → 竞品监控 → condition(价格异动?)
 | **Phase 2** | 对话式工作流创建 + AI 拆解 | ✅ 已完成 |
 | **Phase 3** | 有状态工作流执行 + 心跳 + 用户交互 | ✅ 已完成 |
 | **Phase 4** | 任务管理按数字孪生维度 + 来源分类 | ✅ 已完成 |
-| **Phase 5** | 可视化工作流编辑器（拖拽节点） | 🔜 计划中 |
-| **Phase 6** | 事件驱动触发（webhook / 数据变更） | 🔜 计划中 |
-| **Phase 7** | 工作流市场（企业间共享模板） | 🔜 计划中 |
+| **Phase 5** | 工作流节点类型扩展（human_task/approval/notification/wait/api_call/loop） | ✅ 已完成 |
+| **Phase 6** | 可视化工作流编辑器（拖拽节点） | 🔜 计划中 |
+| **Phase 7** | 事件驱动触发（webhook / 数据变更） | 🔜 计划中 |
+| **Phase 8** | 工作流市场（企业间共享模板） | 🔜 计划中 |

@@ -2,7 +2,7 @@ workflow_id: morning_briefing
 name: 晨间经营简报
 description: >
   每天早上自动拉取平台数据、生成经营日报、检查退款情况，
-  一站式了解昨日经营全貌。
+  异常时通知运营团队，一站式了解昨日经营全貌。
 trigger_type: scheduled
 cron_expr: "0 9 * * *"
 
@@ -34,9 +34,18 @@ nodes:
 
   - id: node_5
     type: skill
-    label: 生成汇总报告
+    label: 智能汇总报告
     skill_id: generate_summary
     config: {}
+
+  - id: node_6
+    type: notification
+    label: 推送日报到企微
+    skill_id: null
+    config:
+      channel: 企微
+      message_template: "📊 今日经营简报已生成：{prev_result}"
+      recipients: ["运营组"]
 
 edges:
   - id: e1
@@ -58,4 +67,8 @@ edges:
   - id: e5
     from: node_4
     to: node_5
+    condition: null
+  - id: e6
+    from: node_5
+    to: node_6
     condition: null
