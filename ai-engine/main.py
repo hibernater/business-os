@@ -70,6 +70,44 @@ async def health():
     }
 
 
+# Skill 分类：商品、客户、运营、团队、财务、供应链、通用
+SKILL_CATEGORY_MAP = {
+    "product_selection": "商品管理",
+    "new_product_plan": "商品管理",
+    "competitor_monitor": "商品管理",
+    "inventory_check": "商品管理",
+    "listing_optimization": "商品管理",
+    "pricing_strategy": "定价利润",
+    "customer_segmentation": "客户运营",
+    "customer_lifecycle": "客户运营",
+    "retention_campaign": "客户运营",
+    "review_analysis": "客户运营",
+    "nps_survey": "客户运营",
+    "inquiry_daily": "数据分析",
+    "weekly_report": "数据分析",
+    "refund_analysis": "数据分析",
+    "anomaly_alert": "数据分析",
+    "generate_summary": "数据分析",
+    "fetch_platform_data": "数据分析",
+    "conversion_optimization": "运营推广",
+    "promotion_planner": "运营推广",
+    "channel_performance": "运营推广",
+    "profit_analysis": "定价利润",
+    "cost_optimization": "定价利润",
+    "team_performance": "团队管理",
+    "customer_service_qa": "团队管理",
+    "training_plan": "团队管理",
+    "order_fulfillment_check": "供应链",
+    "logistics_optimization": "供应链",
+    "supplier_evaluation": "供应链",
+    "cash_flow_forecast": "财务",
+    "tax_preparation": "财务",
+    "traffic_analysis": "数据分析",
+    "store_diagnosis": "数据分析",
+    "marketing_roi": "运营推广",
+}
+
+
 @app.get("/api/skills")
 async def list_skills():
     """返回所有可用 Skill 的元数据"""
@@ -91,6 +129,7 @@ async def list_skills():
             "industry": s.industry,
             "icon": s.icon,
             "usage_count": s.usage_count,
+            "category": SKILL_CATEGORY_MAP.get(s.skill_id, "通用"),
             "quick_setup": [
                 {"question": qs.question, "field": qs.field, "options": qs.options}
                 for qs in s.quick_setup

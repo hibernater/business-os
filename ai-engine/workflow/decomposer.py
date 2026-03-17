@@ -36,6 +36,20 @@ AVAILABLE_SKILLS = {
     # 基础能力
     "fetch_platform_data": {"name": "平台数据同步", "desc": "从电商平台拉取最新经营数据", "dim": "operation"},
     "generate_summary": {"name": "智能汇总报告", "desc": "汇总分析结果生成格式化报告", "dim": "operation"},
+    # 新增预装
+    "anomaly_alert": {"name": "异常检测与告警", "desc": "检测销量评价退款等指标异常并预警", "dim": "operation"},
+    "weekly_report": {"name": "经营周报", "desc": "汇总一周经营数据生成周报", "dim": "operation"},
+    "logistics_optimization": {"name": "物流时效优化", "desc": "分析物流时效签收率给出优化建议", "dim": "operation"},
+    "order_fulfillment_check": {"name": "订单履约检查", "desc": "检查待发货超时订单生成履约清单", "dim": "operation"},
+    "retention_campaign": {"name": "流失挽回活动策划", "desc": "策划老客召回活动方案", "dim": "customer"},
+    "supplier_evaluation": {"name": "供应商评估", "desc": "多维度评估供应商生成选型建议", "dim": "product"},
+    "tax_preparation": {"name": "税务筹备提醒", "desc": "提醒申报开票凭证等税务事项", "dim": "financial"},
+    "training_plan": {"name": "培训计划生成", "desc": "生成客服运营等岗位培训大纲", "dim": "team"},
+    "nps_survey": {"name": "NPS满意度调研", "desc": "设计满意度调研分析 promoters/detractors", "dim": "customer"},
+    "channel_performance": {"name": "渠道效果分析", "desc": "对比各平台渠道投入产出和ROI", "dim": "operation"},
+    "traffic_analysis": {"name": "流量分析", "desc": "分析流量来源访客行为转化漏斗", "dim": "operation"},
+    "store_diagnosis": {"name": "店铺健康诊断", "desc": "综合多维度给店铺健康度评分", "dim": "operation"},
+    "marketing_roi": {"name": "营销ROI分析", "desc": "分析各渠道投入产出获客成本", "dim": "financial"},
 }
 
 DECOMPOSE_PROMPT = """你是一个企业工作流设计专家。用户会用自然语言描述一个业务流程，你需要把它拆解成一个工作流。
@@ -165,6 +179,9 @@ def _rule_decompose(description: str) -> dict:
         (["转化率", "转化", "漏斗", "为什么不下单"], "conversion_optimization"),
         (["促销", "活动", "大促", "双11", "618", "营销"], "promotion_planner"),
         (["详情页", "标题", "主图", "listing"], "listing_optimization"),
+        (["流量", "访客", "跳失", "转化漏斗"], "traffic_analysis"),
+        (["店铺诊断", "健康度", "店铺评分"], "store_diagnosis"),
+        (["营销roi", "投放效果", "获客成本"], "marketing_roi"),
         # 团队
         (["团队", "绩效", "员工", "人效", "考核"], "team_performance"),
         (["客服", "质检", "服务质量", "响应"], "customer_service_qa"),

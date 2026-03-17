@@ -96,7 +96,7 @@ export function ChatLayout() {
             </div>
           )}
           {view === "skills" && (
-            <SkillPanel onSwitchToChat={() => setView("chat")} onSwitchToTasks={() => setView("tasks")} />
+            <SkillPanel onSwitchToTasks={() => setView("tasks")} />
           )}
           {view === "workflows" && <WorkflowPanel />}
           {view === "tasks" && <TaskPanel />}

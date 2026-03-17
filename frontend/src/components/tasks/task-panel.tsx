@@ -45,25 +45,35 @@ const SKILL_DIMENSION: Record<string, string> = {
   product_selection: "product",
   competitor_monitor: "product",
   inventory_check: "product",
+  supplier_evaluation: "product",
   // 客户
   customer_segmentation: "customer",
   customer_lifecycle: "customer",
   review_analysis: "customer",
+  retention_campaign: "customer",
+  nps_survey: "customer",
   // 运营
   inquiry_daily: "operation",
+  weekly_report: "operation",
   refund_analysis: "operation",
   conversion_optimization: "operation",
   promotion_planner: "operation",
   listing_optimization: "operation",
+  channel_performance: "operation",
+  anomaly_alert: "operation",
+  order_fulfillment_check: "operation",
+  logistics_optimization: "operation",
   fetch_platform_data: "operation",
   generate_summary: "operation",
   // 团队
   team_performance: "team",
   customer_service_qa: "team",
+  training_plan: "team",
   // 财务
   profit_analysis: "financial",
   cost_optimization: "financial",
   cash_flow_forecast: "financial",
+  tax_preparation: "financial",
 };
 
 function getTaskDimension(task: TaskInfo): string {

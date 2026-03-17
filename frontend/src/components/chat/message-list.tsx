@@ -89,6 +89,15 @@ export function MessageList() {
   const messages = currentConv?.messages ?? [];
   const isEmpty = messages.length === 0;
 
+  // 从首页带过来的消息：进入对话时自动发送
+  useEffect(() => {
+    const msg = useChatStore.getState().pendingMessage;
+    if (msg) {
+      useChatStore.getState().setPendingMessage(null);
+      sendMessage(msg);
+    }
+  }, []);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isStreaming]);

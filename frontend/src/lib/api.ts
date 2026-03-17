@@ -126,6 +126,7 @@ export interface SkillInfo {
   industry: string[];
   icon: string;
   usage_count: number;
+  category?: string;
   quick_setup: QuickSetupQuestion[];
 }
 

@@ -1,0 +1,48 @@
+skill_id: weekly_report
+skill_type: atomic
+name: 经营周报
+description: 汇总一周经营数据，生成周报，对比上周和上月同期。
+version: 1
+industry: ["通用"]
+icon: "calendar"
+usage_count: 720
+
+trigger_phrases:
+  - 周报
+  - 本周数据
+  - 一周经营
+  - 经营周报
+
+twin_dimensions:
+  - dimension: operation
+    extract_keys: [weekly_revenue, weekly_orders]
+  - dimension: financial
+    extract_keys: [weekly_profit]
+
+system_prompt: 你是企业经营分析师。汇总一周数据生成周报，与上周上月对比，突出趋势。如无真实数据用模拟数据标注。
+
+intake:
+  - question_id: focus
+    text: "周报重点？"
+    options: ["销售利润", "客户复购", "运营转化", "全维度"]
+    allow_multiple: true
+
+steps:
+  - step_id: collect
+    name: 数据汇总
+    description: 汇总一周数据
+    prompt_template: |
+      用户需求：{collected_info}
+      企业数据：{enterprise_assets}
+      请汇总一周经营数据（无真实数据用模拟）：核心指标表、同比环比、各渠道贡献。
+    output_format: markdown
+
+  - step_id: analysis
+    name: 周度分析
+    description: 分析趋势
+    prompt_template: |
+      数据：{previous_results}
+      请给出：本周亮点和问题、趋势判断、下周 Top 3 待办。
+    output_format: markdown
+
+capture_prompt: 周报完成，可设置每周一自动推送。

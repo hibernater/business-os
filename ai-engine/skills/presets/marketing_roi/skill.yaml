@@ -1,0 +1,54 @@
+skill_id: marketing_roi
+skill_type: atomic
+name: 营销ROI分析
+description: >
+  分析各营销渠道的投入产出、ROI、获客成本，
+  帮你优化投放策略和预算分配。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "dollar-sign"
+usage_count: 290
+
+trigger_phrases:
+  - 营销ROI
+  - 投放效果
+  - 获客成本
+  - 哪个渠道划算
+  - 广告投放分析
+  - 预算怎么分
+
+twin_dimensions:
+  - dimension: financial
+    extract_keys: [channel_roi, cac, spend_by_channel]
+  - dimension: operation
+    extract_keys: [conversion_by_channel]
+
+system_prompt: >
+  你是营销效果分析师。分析各渠道ROI、获客成本，给出投放优化建议。
+  如有企业数据结合分析，否则用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: period
+    text: "分析哪个周期？"
+    options: ["最近7天", "最近30天", "本季度"]
+    allow_free_input: false
+
+steps:
+  - step_id: analyze
+    name: 营销ROI分析
+    description: 渠道效果与预算建议
+    prompt_template: |
+      用户需求：{collected_info}
+      企业数据：{enterprise_assets}
+
+      请生成营销ROI分析：
+      1. 各渠道投入产出（花费、GMV、ROI）
+      2. 获客成本（CAC）对比
+      3. 预算分配建议
+      4. 优化优先级
+    output_format: markdown
+
+output_template: |
+  💰 **营销ROI分析** 已完成
+  可追问具体渠道

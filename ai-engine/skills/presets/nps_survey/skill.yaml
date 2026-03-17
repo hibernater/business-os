@@ -1,0 +1,64 @@
+skill_id: nps_survey
+skill_type: atomic
+name: NPS满意度调研
+description: >
+  基于净推荐值（NPS）设计满意度调研，分析客户反馈，
+  识别 promoters、passives、detractors。
+version: 1
+
+industry: ["通用"]
+icon: "message-square"
+usage_count: 310
+
+trigger_phrases:
+  - NPS
+  - 满意度调研
+  - 净推荐值
+  - 客户满意度
+  - 满意度调查
+  - 推荐意愿
+
+twin_dimensions:
+  - dimension: customer
+    extract_keys: [nps_score, promoter_rate, detractor_rate]
+
+system_prompt: >
+  你是客户体验专家。设计 NPS 满意度调研，分析客户反馈，区分 promoters/passives/detractors。
+  给出改进方向。如无真实数据，用模拟数据标注【模拟数据】。
+
+intake:
+  - question_id: target
+    text: "调研对象？"
+    options: ["近期买家", "复购客户", "高价值客户", "全量客户"]
+
+  - question_id: channel
+    text: "调研渠道？"
+    options: ["订单后短信", "企微", "邮件", "电话回访", "多渠道"]
+
+steps:
+  - step_id: design
+    name: 调研设计
+    description: 设计 NPS 调研问卷
+    prompt_template: |
+      用户需求：{collected_info}
+      企业已有数据：{enterprise_assets}
+
+      请设计 NPS 调研（标注【模拟数据】如无真实数据）：
+      1. 问卷结构（0-10 打分 + 开放题）
+      2. 触达话术和时机
+      3. 样本量和预期回收率
+    output_format: markdown
+
+  - step_id: analysis
+    name: 结果分析
+    description: 分析 NPS 结果并给建议
+    prompt_template: |
+      调研设计：{previous_results}
+      如有真实数据请分析，否则用模拟数据演示：
+      1. NPS 得分及分段（promoters/passives/detractors）
+      2. 主要不满点聚类
+      3. 改进优先级建议
+    output_format: markdown
+
+capture_prompt: >
+  NPS 调研完成。建议定期开展满意度跟踪。

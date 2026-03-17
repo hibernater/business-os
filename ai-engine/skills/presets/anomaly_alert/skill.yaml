@@ -1,0 +1,47 @@
+skill_id: anomaly_alert
+skill_type: atomic
+name: 异常检测与告警
+description: 自动检测销量、评价、退款、库存等指标的异常波动，及时预警。
+version: 1
+industry: ["通用"]
+icon: "alert-triangle"
+usage_count: 580
+
+trigger_phrases:
+  - 异常检测
+  - 数据异常
+  - 告警
+  - 销量异常
+  - 异常预警
+
+twin_dimensions:
+  - dimension: operation
+    extract_keys: [anomaly_types, alert_level]
+
+system_prompt: 你是数据异常检测助手。识别销量、评价、退款、流量等指标异常，标注严重程度和应对建议。如无真实数据用模拟数据标注。
+
+intake:
+  - question_id: metrics
+    text: "关注哪些指标？"
+    options: ["销量", "评价", "退款", "流量", "库存", "全部"]
+    allow_multiple: true
+
+steps:
+  - step_id: detect
+    name: 异常检测
+    description: 识别各指标异常
+    prompt_template: |
+      用户关注：{collected_info}
+      企业数据：{enterprise_assets}
+      请进行异常检测（无真实数据用模拟标注）：各指标偏差、异常清单、严重等级、Top 3 需核查项。
+    output_format: markdown
+
+  - step_id: summary
+    name: 告警摘要
+    description: 生成告警摘要
+    prompt_template: |
+      检测结果：{previous_results}
+      请生成：异常总览、优先处理 3 件事、可延后事项。
+    output_format: markdown
+
+capture_prompt: 异常检测完成，可设置定时自动检测。

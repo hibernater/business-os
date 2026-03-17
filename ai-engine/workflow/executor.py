@@ -371,30 +371,104 @@ async def _handle_api_call(node, current_node_id, nodes, edges, completed_nodes,
 
 
 async def _handle_sub_workflow(node, current_node_id, nodes, edges, completed_nodes, context, execution, llm):
-    """Sub-workflow: placeholder — triggers another workflow and waits."""
+    """Sub-workflow: trigger another workflow execution via the Java backend and track it."""
     config = node.get("config", {})
     sub_workflow_id = config.get("workflow_id", "")
     label = node.get("label", "子工作流")
 
-    result = f"🔗 子工作流「{label}」触发完成（workflow_id: {sub_workflow_id or '未配置'}）"
+    sub_state = context.get(current_node_id, {})
 
-    completed_nodes.append(current_node_id)
-    context[current_node_id] = {
-        "type": "sub_workflow",
-        "workflow_id": sub_workflow_id,
-        "result": result,
-        "completedAt": datetime.now().isoformat(),
-    }
+    if sub_state.get("sub_execution_id"):
+        # Already triggered — poll its status
+        sub_exec_id = sub_state["sub_execution_id"]
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    f"{JAVA_BACKEND_URL}/api/workflows/executions/{sub_exec_id}",
+                    headers={"X-Enterprise-Id": execution.get("enterpriseId", "default")}
+                )
+                if resp.status_code == 200:
+                    sub_exec = resp.json()
+                    sub_status = sub_exec.get("status", "unknown")
+                    if sub_status in ("completed", "failed"):
+                        completed_nodes.append(current_node_id)
+                        sub_state["completedAt"] = datetime.now().isoformat()
+                        sub_state["sub_status"] = sub_status
+                        context[current_node_id] = sub_state
 
-    next_id = _find_next(current_node_id, edges, completed_nodes, context)
-    updates = _base_updates(completed_nodes, context)
-    if next_id:
-        updates["currentNodeId"] = next_id
-    else:
-        updates["status"] = "completed"
-        updates["completedAt"] = datetime.now().isoformat()
+                        next_id = _find_next(current_node_id, edges, completed_nodes, context)
+                        updates = _base_updates(completed_nodes, context)
+                        if next_id:
+                            updates["currentNodeId"] = next_id
+                        else:
+                            updates["status"] = "completed"
+                            updates["completedAt"] = datetime.now().isoformat()
 
-    return _event("sub_workflow_done", current_node_id, result, updates)
+                        return _event("sub_workflow_done", current_node_id,
+                                      f"🔗 子工作流「{label}」已{('完成' if sub_status == 'completed' else '失败')}", updates)
+                    else:
+                        return _event("waiting", current_node_id,
+                                      f"🔗 子工作流「{label}」执行中（{sub_status}）",
+                                      {"lastHeartbeatAt": datetime.now().isoformat()})
+        except Exception as e:
+            return _event("waiting", current_node_id,
+                          f"🔗 子工作流「{label}」状态查询失败: {str(e)[:80]}",
+                          {"lastHeartbeatAt": datetime.now().isoformat()})
+
+    if not sub_workflow_id:
+        completed_nodes.append(current_node_id)
+        context[current_node_id] = {
+            "type": "sub_workflow", "error": "未配置子工作流 ID",
+            "completedAt": datetime.now().isoformat(),
+        }
+        next_id = _find_next(current_node_id, edges, completed_nodes, context)
+        updates = _base_updates(completed_nodes, context)
+        if next_id:
+            updates["currentNodeId"] = next_id
+        else:
+            updates["status"] = "completed"
+            updates["completedAt"] = datetime.now().isoformat()
+        return _event("sub_workflow_error", current_node_id,
+                      f"🔗 子工作流「{label}」未配置 ID，跳过", updates)
+
+    # Trigger the sub-workflow via Java backend
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{JAVA_BACKEND_URL}/api/workflows/{sub_workflow_id}/start",
+                headers={"X-Enterprise-Id": execution.get("enterpriseId", "default")}
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                sub_exec = data.get("execution", {})
+                sub_exec_id = sub_exec.get("id", "")
+                context[current_node_id] = {
+                    "type": "sub_workflow",
+                    "workflow_id": sub_workflow_id,
+                    "sub_execution_id": sub_exec_id,
+                    "triggered_at": datetime.now().isoformat(),
+                }
+                return _event("sub_workflow_started", current_node_id,
+                              f"🔗 子工作流「{label}」已触发（execution: {sub_exec_id[:8]}...）",
+                              {"contextJson": json.dumps(context, ensure_ascii=False),
+                               "lastHeartbeatAt": datetime.now().isoformat()})
+            else:
+                raise Exception(f"HTTP {resp.status_code}")
+    except Exception as e:
+        completed_nodes.append(current_node_id)
+        context[current_node_id] = {
+            "type": "sub_workflow", "error": str(e)[:200],
+            "completedAt": datetime.now().isoformat(),
+        }
+        next_id = _find_next(current_node_id, edges, completed_nodes, context)
+        updates = _base_updates(completed_nodes, context)
+        if next_id:
+            updates["currentNodeId"] = next_id
+        else:
+            updates["status"] = "completed"
+            updates["completedAt"] = datetime.now().isoformat()
+        return _event("sub_workflow_error", current_node_id,
+                      f"🔗 子工作流触发失败: {str(e)[:100]}", updates)
 
 
 async def _handle_loop(node, current_node_id, nodes, edges, completed_nodes, context, execution, llm):

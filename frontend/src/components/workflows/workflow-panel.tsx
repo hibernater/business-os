@@ -27,6 +27,15 @@ import {
   ShieldCheck,
   Repeat,
   Workflow,
+  ThumbsUp,
+  ThumbsDown,
+  FileText,
+  UserCheck,
+  Settings,
+  Package,
+  BarChart3,
+  DollarSign,
+  Search,
 } from "lucide-react";
 import {
   fetchWorkflows,
@@ -41,14 +50,18 @@ import {
   pauseWorkflowExecution,
   resumeWorkflowExecution,
   getToken,
+  getAuthData,
+  fetchSkillRecommendations,
   type WorkflowInfo,
   type WorkflowNode,
   type WorkflowEdge,
   type WorkflowExecutionInfo,
   type PendingInteraction,
+  type SkillRecommendation,
 } from "@/lib/api";
+import { WorkflowBuilder } from "./workflow-builder";
 
-type SubView = "list" | "create" | "detail";
+type SubView = "list" | "create" | "build" | "edit" | "detail";
 
 /* ── 本地规则兜底：API 不可用时前端自行拆解 ── */
 
@@ -79,6 +92,20 @@ const SKILL_CATALOG: Record<string, { name: string; keywords: string[] }> = {
   // 基础
   fetch_platform_data: { name: "平台数据同步", keywords: ["拉取", "数据", "平台", "同步", "导入"] },
   generate_summary: { name: "智能汇总报告", keywords: ["汇总", "报告", "总结"] },
+  // 新增预装
+  anomaly_alert: { name: "异常检测与告警", keywords: ["异常", "告警", "预警", "数据异常"] },
+  weekly_report: { name: "经营周报", keywords: ["周报", "本周", "一周"] },
+  logistics_optimization: { name: "物流时效优化", keywords: ["物流", "发货", "签收", "配送"] },
+  order_fulfillment_check: { name: "订单履约检查", keywords: ["待发货", "履约", "超时订单"] },
+  retention_campaign: { name: "流失挽回活动策划", keywords: ["流失", "召回", "老客户", "挽回"] },
+  supplier_evaluation: { name: "供应商评估", keywords: ["供应商", "采购", "选型"] },
+  tax_preparation: { name: "税务筹备提醒", keywords: ["税务", "报税", "开票", "申报"] },
+  training_plan: { name: "培训计划生成", keywords: ["培训", "客服培训", "员工培训"] },
+  nps_survey: { name: "NPS满意度调研", keywords: ["NPS", "满意度", "调研"] },
+  channel_performance: { name: "渠道效果分析", keywords: ["渠道", "平台", "ROI", "投入产出"] },
+  traffic_analysis: { name: "流量分析", keywords: ["流量", "访客", "跳失", "转化漏斗"] },
+  store_diagnosis: { name: "店铺健康诊断", keywords: ["店铺诊断", "健康度", "店铺评分"] },
+  marketing_roi: { name: "营销ROI分析", keywords: ["营销ROI", "投放效果", "获客成本"] },
 };
 
 function localDecompose(desc: string): GeneratedWorkflow {
@@ -184,14 +211,21 @@ export function WorkflowPanel() {
   const [stats, setStats] = useState({ total: 0, active: 0 });
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<WorkflowInfo | null>(null);
+  const [createInitialPrompt, setCreateInitialPrompt] = useState<string | null>(null);
+  const [skillRecs, setSkillRecs] = useState<SkillRecommendation[]>([]);
 
   const load = async () => {
     const token = getToken();
+    const auth = getAuthData();
     if (!token) return;
     try {
-      const data = await fetchWorkflows(token);
+      const [data, recs] = await Promise.all([
+        fetchWorkflows(token),
+        auth?.enterpriseId ? fetchSkillRecommendations(token, auth.enterpriseId) : Promise.resolve([]),
+      ]);
       setWorkflows(data.workflows);
       setStats({ total: data.total, active: data.active });
+      setSkillRecs(recs);
     } catch {
       /* ignore */
     } finally {
@@ -206,10 +240,53 @@ export function WorkflowPanel() {
   if (subView === "create") {
     return (
       <WorkflowCreator
-        onBack={() => setSubView("list")}
+        initialPrompt={createInitialPrompt}
+        onBack={() => {
+          setCreateInitialPrompt(null);
+          setSubView("list");
+        }}
         onCreated={() => {
+          setCreateInitialPrompt(null);
           load();
           setSubView("list");
+        }}
+      />
+    );
+  }
+
+  if (subView === "build") {
+    return (
+      <WorkflowBuilder
+        onBack={() => setSubView("list")}
+        onSaved={() => {
+          load();
+          setSubView("list");
+        }}
+      />
+    );
+  }
+
+  if (subView === "edit" && selected) {
+    const editNodes: WorkflowNode[] = (() => {
+      try { return JSON.parse(selected.nodesJson || "[]"); } catch { return []; }
+    })();
+    const editEdges: WorkflowEdge[] = (() => {
+      try { return JSON.parse(selected.edgesJson || "[]"); } catch { return []; }
+    })();
+    return (
+      <WorkflowBuilder
+        workflowId={selected.id}
+        initialNodes={editNodes}
+        initialEdges={editEdges}
+        initialName={selected.name}
+        initialDescription={selected.description}
+        initialTriggerType={selected.triggerType}
+        initialCronExpr={selected.cronExpr || undefined}
+        onBack={() => setSubView("detail")}
+        onSaved={() => {
+          load();
+          setSubView("list");
+          setSelected(null);
         }}
       />
     );
@@ -224,6 +301,7 @@ export function WorkflowPanel() {
           setSelected(null);
         }}
         onRefresh={load}
+        onEdit={() => setSubView("edit")}
       />
     );
   }
@@ -236,16 +314,25 @@ export function WorkflowPanel() {
           <div>
             <h2 className="text-xl font-bold text-gray-900">工作流</h2>
             <p className="mt-1 text-sm text-gray-500">
-              用自然语言描述业务流程，AI 自动编排 Skill 构建工作流
+              混合 AI 执行、人工任务、审批、通知等节点，构建企业流程自动化引擎
             </p>
           </div>
-          <button
-            onClick={() => setSubView("create")}
-            className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            创建工作流
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSubView("build")}
+              className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+            >
+              <GitBranch className="h-4 w-4" />
+              可视化构建
+            </button>
+            <button
+              onClick={() => setSubView("create")}
+              className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition-colors"
+            >
+              <Sparkles className="h-4 w-4" />
+              AI 创建
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -266,11 +353,30 @@ export function WorkflowPanel() {
           </div>
         </div>
 
+        {/* 为你推荐：基于资产推荐 Skill 和工作流 */}
+        <RecommendSection
+          skillRecs={skillRecs}
+          onSkillClick={(desc) => {
+            setCreateInitialPrompt(desc);
+            setSubView("create");
+          }}
+          onWorkflowClick={(desc) => {
+            setCreateInitialPrompt(desc);
+            setSubView("create");
+          }}
+        />
+
         {/* List */}
         {loading ? (
           <div className="py-20 text-center text-gray-400">加载中...</div>
         ) : workflows.length === 0 ? (
-          <EmptyState onCreateClick={() => setSubView("create")} />
+          <EmptyState
+            onCreateClick={() => {
+              setCreateInitialPrompt(null);
+              setSubView("create");
+            }}
+            onBuildClick={() => setSubView("build")}
+          />
         ) : (
           <div className="space-y-3">
             {workflows.map((wf) => (
@@ -307,25 +413,130 @@ export function WorkflowPanel() {
   );
 }
 
-function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
+const RECOMMENDED_WORKFLOWS = [
+  { desc: "每天拉取数据分析经营状况，生成日报后推送到企微", label: "每日经营日报" },
+  { desc: "监控竞品价格，如果有变动就通知运营，运营确认后调整定价", label: "竞品监控告警" },
+  { desc: "分析客户数据生成方案，提交老板审批，通过后通知团队执行", label: "客户方案审批" },
+];
+
+const SKILL_ICON_MAP: Record<string, typeof Package> = {
+  search: Search,
+  "dollar-sign": DollarSign,
+  users: Users,
+  "bar-chart": BarChart3,
+  package: Package,
+  zap: Zap,
+};
+
+function getSkillIcon(icon: string) {
+  return SKILL_ICON_MAP[icon] || Package;
+}
+
+function RecommendSection({
+  skillRecs,
+  onSkillClick,
+  onWorkflowClick,
+}: {
+  skillRecs: SkillRecommendation[];
+  onSkillClick: (desc: string) => void;
+  onWorkflowClick: (desc: string) => void;
+}) {
+  const hasSkillRecs = skillRecs.length > 0;
+  const hasWorkflowRecs = RECOMMENDED_WORKFLOWS.length > 0;
+  if (!hasSkillRecs && !hasWorkflowRecs) return null;
+
   return (
-    <div className="py-20 text-center">
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles className="h-4 w-4 text-amber-500" />
+        <h3 className="text-sm font-semibold text-gray-900">为你推荐</h3>
+        <span className="text-xs text-gray-400">基于商品、客户等资产分析</span>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {hasSkillRecs && (
+          <div className="space-y-2">
+            <h4 className="text-xs font-medium text-gray-500">推荐执行的 Skill</h4>
+            {skillRecs.slice(0, 3).map((rec) => {
+              const Icon = getSkillIcon(rec.icon);
+              const workflowDesc = `使用${rec.name}，${rec.reason}`;
+              return (
+                <button
+                  key={rec.skill_id}
+                  onClick={() => onSkillClick(workflowDesc)}
+                  className="w-full text-left rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-3 hover:shadow-sm transition-all hover:border-amber-300"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                      <Icon className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[13px] font-medium text-gray-900">{rec.name}</span>
+                      <p className="mt-0.5 text-[12px] text-amber-700 line-clamp-2">{rec.reason}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-amber-400" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {hasWorkflowRecs && (
+          <div className="space-y-2">
+            <h4 className="text-xs font-medium text-gray-500">推荐工作流</h4>
+            {RECOMMENDED_WORKFLOWS.map((item) => (
+              <button
+                key={item.label}
+                onClick={() => onWorkflowClick(item.desc)}
+                className="w-full text-left rounded-xl border border-gray-200 bg-white px-4 py-3 hover:border-blue-200 hover:bg-blue-50/50 transition-all flex items-start gap-2"
+              >
+                <div className="flex-1 min-w-0">
+                  <span className="text-[13px] font-medium text-gray-900">{item.label}</span>
+                  <p className="mt-0.5 text-[12px] text-gray-500 line-clamp-2">{item.desc}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 mt-1" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  onCreateClick,
+  onBuildClick,
+}: {
+  onCreateClick: () => void;
+  onBuildClick: () => void;
+}) {
+  return (
+    <div className="py-12 text-center">
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50">
         <GitBranch className="h-8 w-8 text-blue-500" />
       </div>
       <h3 className="text-lg font-semibold text-gray-900">还没有工作流</h3>
       <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
-        工作流是多个 Skill 按业务逻辑串联的自动化流程。
+        工作流是企业流程自动化引擎 — 混合 AI 执行、人工任务、审批、通知等节点。
         <br />
-        用自然语言描述你的业务流程，AI 会帮你自动编排。
+        用自然语言描述让 AI 编排，或用可视化编辑器手动构建。
       </p>
-      <button
-        onClick={onCreateClick}
-        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-      >
-        <Sparkles className="h-4 w-4" />
-        用对话创建第一个工作流
-      </button>
+      <div className="mt-6 flex items-center justify-center gap-3">
+        <button
+          onClick={onCreateClick}
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+        >
+          <Sparkles className="h-4 w-4" />
+          AI 对话创建
+        </button>
+        <button
+          onClick={onBuildClick}
+          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          <GitBranch className="h-4 w-4" />
+          可视化构建
+        </button>
+      </div>
     </div>
   );
 }
@@ -439,22 +650,21 @@ function WorkflowCard({
       {/* Mini flow preview */}
       {nodes.length > 0 && (
         <div className="mt-3 flex items-center gap-1 overflow-hidden">
-          {nodes.slice(0, 5).map((node, i) => (
-            <div key={node.id} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="h-3 w-3 shrink-0 text-gray-300" />}
-              <span
-                className={`shrink-0 truncate rounded-md px-2 py-0.5 text-[11px] ${
-                  node.type === "condition"
-                    ? "bg-amber-50 text-amber-600"
-                    : "bg-blue-50 text-blue-600"
-                }`}
-              >
-                {node.label}
-              </span>
-            </div>
-          ))}
-          {nodes.length > 5 && (
-            <span className="text-[11px] text-gray-400">+{nodes.length - 5}</span>
+          {nodes.slice(0, 6).map((node, i) => {
+            const st = NODE_STYLE[node.type] || NODE_STYLE.skill;
+            const NIcon = st.icon;
+            return (
+              <div key={node.id} className="flex items-center gap-1">
+                {i > 0 && <ChevronRight className="h-3 w-3 shrink-0 text-gray-300" />}
+                <span className={`flex shrink-0 items-center gap-1 truncate rounded-md px-2 py-0.5 text-[11px] ${st.bg} ${st.text}`}>
+                  <NIcon className="h-3 w-3 shrink-0" />
+                  {node.label}
+                </span>
+              </div>
+            );
+          })}
+          {nodes.length > 6 && (
+            <span className="text-[11px] text-gray-400">+{nodes.length - 6}</span>
           )}
         </div>
       )}
@@ -465,9 +675,11 @@ function WorkflowCard({
 /* ==================== Workflow Creator (Conversational) ==================== */
 
 function WorkflowCreator({
+  initialPrompt,
   onBack,
   onCreated,
 }: {
+  initialPrompt?: string | null;
   onBack: () => void;
   onCreated: () => void;
 }) {
@@ -475,10 +687,10 @@ function WorkflowCreator({
     {
       role: "ai",
       content:
-        "你好！我来帮你创建工作流。\n\n请用自然语言描述你想自动化的业务流程，比如：\n• 「每天早上拉取平台数据，分析经营状况，生成日报」\n• 「监控竞品价格，如果有变动就分析影响并通知」\n• 「分析客户数据，识别高价值客户，制定定价策略」",
+        "你好！我来帮你创建工作流。\n\n我支持多种节点类型，不只是 AI 分析——还能加入审批、人工任务、等待、通知等节点。\n\n试试描述你想自动化的业务流程，比如：\n• 「每天拉取数据分析经营状况，生成日报后推送到企微」\n• 「监控竞品价格，如果有变动就通知运营，运营确认后调整定价」\n• 「分析客户数据生成方案，提交老板审批，通过后通知团队执行」",
     },
   ]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialPrompt || "");
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedWorkflow | null>(null);
   const [saving, setSaving] = useState(false);
@@ -518,15 +730,21 @@ function WorkflowCreator({
     }
 
     setGenerated(wf);
-    const nodeNames = wf.nodes
-      .filter((n) => n.type === "skill")
-      .map((n) => `「${n.label}」`)
-      .join(" → ");
+    const TYPE_LABEL: Record<string, string> = {
+      skill: "AI", condition: "条件", human_task: "人工", approval: "审批",
+      notification: "通知", wait: "等待", api_call: "API", sub_workflow: "子流程", loop: "循环",
+    };
+    const flowDesc = wf.nodes
+      .map((n) => `[${TYPE_LABEL[n.type] || n.type}] ${n.label}`)
+      .join("\n→ ");
+    const stats = Object.entries(
+      wf.nodes.reduce<Record<string, number>>((acc, n) => { acc[n.type] = (acc[n.type] || 0) + 1; return acc; }, {})
+    ).map(([t, c]) => `${TYPE_LABEL[t] || t} ×${c}`).join("、");
     setMessages((prev) => [
       ...prev.slice(0, -1),
       {
         role: "ai",
-        content: `已为你生成工作流「${wf!.name}」：\n\n${nodeNames}\n\n${
+        content: `已为你生成工作流「${wf!.name}」（${wf!.nodes.length} 个节点：${stats}）：\n\n${flowDesc}\n\n${
           wf!.trigger_type === "scheduled"
             ? `触发方式：定时（${wf!.cron_expr}）`
             : "触发方式：手动"
@@ -744,16 +962,285 @@ function orderNodes(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[
   return ordered;
 }
 
+/* ==================== Node Type Labels & Helpers ==================== */
+
+const NODE_TYPE_LABEL: Record<string, string> = {
+  skill: "AI 执行", condition: "条件判断", human_task: "人工任务",
+  approval: "审批", notification: "通知", wait: "等待/延时",
+  api_call: "API 调用", sub_workflow: "子流程", loop: "循环",
+};
+
+function nodeConfigSummary(node: WorkflowNode): string {
+  const c = node.config || {};
+  switch (node.type) {
+    case "skill":
+      return node.skill_id ? `Skill: ${node.skill_id}` : "AI 自动执行";
+    case "condition":
+      return `表达式: ${(c as { expression?: string }).expression || "—"}`;
+    case "human_task":
+      return `指派: ${(c as { assignee?: string }).assignee || "待定"}`;
+    case "approval":
+      return `审批人: ${(c as { approver?: string }).approver || "待定"}`;
+    case "notification":
+      return `渠道: ${(c as { channel?: string }).channel || "系统"}`;
+    case "wait": {
+      const wt = (c as { wait_type?: string }).wait_type;
+      if (wt === "duration") return `等待 ${(c as { duration_minutes?: number }).duration_minutes || "?"} 分钟`;
+      return (c as { reason?: string }).reason || "等待";
+    }
+    case "api_call":
+      return `${((c as { method?: string }).method || "GET").toUpperCase()} ${(c as { url?: string }).url || "—"}`;
+    case "sub_workflow":
+      return `子流程: ${(c as { workflow_id?: string }).workflow_id || "—"}`;
+    case "loop":
+      return `循环: ${(c as { items_source?: string }).items_source || "—"}`;
+    default:
+      return "";
+  }
+}
+
+/* ==================== NodeRow — per-node display in detail view ==================== */
+
+function NodeRow({
+  node,
+  index,
+  isCompleted,
+  isCurrent,
+  executionStatus,
+  edge,
+}: {
+  node: WorkflowNode;
+  index: number;
+  isCompleted: boolean;
+  isCurrent: boolean;
+  executionStatus?: string;
+  edge?: WorkflowEdge;
+}) {
+  const isWaiting = isCurrent && executionStatus === "waiting_input";
+  const style = NODE_STYLE[node.type] || NODE_STYLE.skill;
+  const Icon = style.icon;
+
+  const statusColor = isWaiting
+    ? "border-amber-300 bg-amber-50"
+    : isCurrent
+      ? "border-blue-300 bg-blue-50"
+      : isCompleted
+        ? "border-green-200 bg-green-50/50"
+        : "border-gray-100 bg-white";
+
+  return (
+    <div>
+      {edge?.condition && (
+        <div className="ml-3 flex items-center gap-1 py-1 text-[11px] text-amber-600">
+          <AlertCircle className="h-3 w-3" /> {edge.condition}
+        </div>
+      )}
+      <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 transition-all ${statusColor}`}>
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${style.bg} ${style.text}`}>
+          {isCompleted ? (
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
+          ) : isCurrent && executionStatus === "running" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Icon className="h-4 w-4" />
+          )}
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-800 truncate">{node.label}</span>
+            <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${style.bg} ${style.text}`}>
+              {NODE_TYPE_LABEL[node.type] || node.type}
+            </span>
+          </div>
+          <div className="text-xs text-gray-400 truncate mt-0.5">{nodeConfigSummary(node)}</div>
+        </div>
+        <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium ${
+          isCompleted
+            ? "bg-green-100 text-green-600"
+            : isWaiting
+              ? "bg-amber-100 text-amber-600"
+              : isCurrent
+                ? "bg-blue-100 text-blue-600"
+                : "bg-gray-100 text-gray-400"
+        }`}>
+          {isCompleted ? "已完成" : isWaiting ? "等待交互" : isCurrent ? "执行中" : "待执行"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ==================== InteractionPanel — type-specific UI ==================== */
+
+function InteractionPanel({
+  interaction,
+  currentNode,
+  interactionInput,
+  onInputChange,
+  onSubmit,
+}: {
+  interaction: PendingInteraction;
+  currentNode: WorkflowNode | null;
+  interactionInput: string;
+  onInputChange: (v: string) => void;
+  onSubmit: (response: string) => void;
+}) {
+  const nodeType = currentNode?.type || "condition";
+  const style = NODE_STYLE[nodeType] || NODE_STYLE.skill;
+  const Icon = style.icon;
+
+  if (nodeType === "approval") {
+    return (
+      <div className="mt-4 rounded-xl border border-rose-200 bg-white p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50">
+            <ShieldCheck className="h-5 w-5 text-rose-600" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-sm font-semibold text-gray-900">审批确认</h4>
+            <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap">{interaction.message}</p>
+            {currentNode?.config && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+                <UserCheck className="h-3.5 w-3.5" />
+                审批人: {(currentNode.config as { approver?: string }).approver || "—"}
+              </div>
+            )}
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                onClick={() => onSubmit("approved")}
+                className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition-colors"
+              >
+                <ThumbsUp className="h-4 w-4" /> 批准
+              </button>
+              <button
+                onClick={() => onSubmit("rejected")}
+                className="flex items-center gap-2 rounded-xl bg-red-100 px-5 py-2.5 text-sm font-medium text-red-700 hover:bg-red-200 transition-colors"
+              >
+                <ThumbsDown className="h-4 w-4" /> 驳回
+              </button>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <input
+                type="text"
+                value={interactionInput}
+                onChange={(e) => onInputChange(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && interactionInput.trim() && onSubmit(interactionInput)}
+                placeholder="可附审批意见..."
+                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-rose-300"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (nodeType === "human_task") {
+    return (
+      <div className="mt-4 rounded-xl border border-violet-200 bg-white p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50">
+            <Users className="h-5 w-5 text-violet-600" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-sm font-semibold text-gray-900">人工任务</h4>
+            <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap">{interaction.message}</p>
+            {currentNode?.config && (
+              <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-400">
+                <span className="flex items-center gap-1">
+                  <UserCheck className="h-3.5 w-3.5" />
+                  指派: {(currentNode.config as { assignee?: string }).assignee || "未指定"}
+                </span>
+                {(currentNode.config as { description?: string }).description && (
+                  <span className="flex items-center gap-1">
+                    <FileText className="h-3.5 w-3.5" />
+                    {(currentNode.config as { description?: string }).description}
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="mt-4 flex items-center gap-2">
+              <input
+                type="text"
+                value={interactionInput}
+                onChange={(e) => onInputChange(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && interactionInput.trim() && onSubmit(interactionInput)}
+                placeholder="填写完成情况或备注..."
+                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-violet-300"
+              />
+              <button
+                onClick={() => onSubmit(interactionInput.trim() || "done")}
+                className="flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-700 transition-colors"
+              >
+                <CheckCircle2 className="h-4 w-4" /> 完成任务
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // condition / wait / generic — amber style with options + free text
+  return (
+    <div className="mt-4 rounded-xl border border-amber-200 bg-white p-5">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50">
+          <Icon className="h-5 w-5 text-amber-600" />
+        </div>
+        <div className="flex-1">
+          <h4 className="text-sm font-semibold text-gray-900">
+            {NODE_TYPE_LABEL[nodeType] || "等待你的回复"}
+          </h4>
+          <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap">{interaction.message}</p>
+          {interaction.options && interaction.options.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {interaction.options.map((opt) => (
+                <button
+                  key={opt.edge_id}
+                  onClick={() => onSubmit(opt.label)}
+                  className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 transition-colors"
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              type="text"
+              value={interactionInput}
+              onChange={(e) => onInputChange(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && interactionInput.trim() && onSubmit(interactionInput)}
+              placeholder="输入你的回复..."
+              className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-amber-300"
+            />
+            <button
+              onClick={() => interactionInput.trim() && onSubmit(interactionInput)}
+              disabled={!interactionInput.trim()}
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ==================== Workflow Detail (with Live Execution) ==================== */
 
 function WorkflowDetail({
   workflow,
   onBack,
   onRefresh,
+  onEdit,
 }: {
   workflow: WorkflowInfo;
   onBack: () => void;
   onRefresh: () => void;
+  onEdit?: () => void;
 }) {
   const [execution, setExecution] = useState<WorkflowExecutionInfo | null>(null);
   const [interactionInput, setInteractionInput] = useState("");
@@ -856,6 +1343,15 @@ function WorkflowDetail({
               <p className="mt-1 text-sm text-gray-500">{workflow.description}</p>
             </div>
             <div className="flex gap-2">
+              {onEdit && !isLive && (
+                <button
+                  onClick={onEdit}
+                  className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  <Settings className="h-4 w-4" />
+                  编辑
+                </button>
+              )}
               {isLive && (
                 <button
                   onClick={handlePauseResume}
@@ -924,105 +1420,32 @@ function WorkflowDetail({
             </div>
           )}
 
-          {/* Interaction Panel */}
+          {/* Interaction Panel — type-specific */}
           {pendingInteraction && execution?.status === "waiting_input" && (
-            <div className="mt-4 rounded-xl border border-amber-200 bg-white p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
-                  <MessageCircle className="h-4 w-4 text-amber-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{pendingInteraction.message}</p>
-                  {pendingInteraction.options && pendingInteraction.options.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {pendingInteraction.options.map((opt) => (
-                        <button
-                          key={opt.edge_id}
-                          onClick={() => handleInteract(opt.label)}
-                          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-100 transition-colors"
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <div className="mt-3 flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={interactionInput}
-                      onChange={(e) => setInteractionInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && interactionInput.trim() && handleInteract(interactionInput)}
-                      placeholder="输入你的回复..."
-                      className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-amber-300"
-                    />
-                    <button
-                      onClick={() => interactionInput.trim() && handleInteract(interactionInput)}
-                      disabled={!interactionInput.trim()}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40"
-                    >
-                      <Send className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <InteractionPanel
+              interaction={pendingInteraction}
+              currentNode={nodes.find((n) => n.id === execution.currentNodeId) || null}
+              interactionInput={interactionInput}
+              onInputChange={setInteractionInput}
+              onSubmit={handleInteract}
+            />
           )}
 
           {/* Flow with live status */}
           <div className="mt-6">
             <h3 className="mb-3 text-sm font-semibold text-gray-700">流程编排</h3>
             <div className="space-y-2">
-              {orderNodes(nodes, edges).map((node, i) => {
-                const isCompleted = completedNodes.includes(node.id);
-                const isCurrent = execution?.currentNodeId === node.id;
-                const isWaiting = isCurrent && execution?.status === "waiting_input";
-
-                return (
-                  <div
-                    key={node.id}
-                    className={`flex items-center gap-3 rounded-lg border px-4 py-3 transition-all ${
-                      isWaiting
-                        ? "border-amber-300 bg-amber-50"
-                        : isCurrent
-                          ? "border-blue-300 bg-blue-50"
-                          : isCompleted
-                            ? "border-green-200 bg-green-50/50"
-                            : "border-gray-100 bg-white"
-                    }`}
-                  >
-                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                      isCompleted
-                        ? "bg-green-100 text-green-600"
-                        : isCurrent
-                          ? "bg-blue-100 text-blue-600"
-                          : "bg-gray-100 text-gray-400"
-                    }`}>
-                      {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : isCurrent && execution?.status === "running" ? <Loader2 className="h-4 w-4 animate-spin" /> : i + 1}
-                    </span>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-800">{node.label}</div>
-                      <div className="text-xs text-gray-400">
-                        {node.type === "skill"
-                          ? `Skill: ${node.skill_id}`
-                          : `条件: ${(node.config as { expression?: string })?.expression || "—"}`}
-                      </div>
-                    </div>
-                    <span className={`rounded-md px-2 py-0.5 text-[11px] ${
-                      isCompleted
-                        ? "bg-green-100 text-green-600"
-                        : isWaiting
-                          ? "bg-amber-100 text-amber-600"
-                          : isCurrent
-                            ? "bg-blue-100 text-blue-600"
-                            : node.type === "condition"
-                              ? "bg-amber-50 text-amber-600"
-                              : "bg-gray-100 text-gray-500"
-                    }`}>
-                      {isCompleted ? "已完成" : isWaiting ? "等待交互" : isCurrent ? "执行中" : node.type === "condition" ? "条件" : "待执行"}
-                    </span>
-                  </div>
-                );
-              })}
+              {orderNodes(nodes, edges).map((node, i) => (
+                <NodeRow
+                  key={node.id}
+                  node={node}
+                  index={i}
+                  isCompleted={completedNodes.includes(node.id)}
+                  isCurrent={execution?.currentNodeId === node.id}
+                  executionStatus={execution?.status}
+                  edge={i > 0 ? edges.find((e) => e.to === node.id) : undefined}
+                />
+              ))}
             </div>
           </div>
         </div>

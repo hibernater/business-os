@@ -11,10 +11,10 @@ import com.businessos.service.AiEngineClient;
 import com.businessos.service.NotificationService;
 import org.springframework.web.bind.annotation.*;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/workflows")
@@ -198,6 +198,8 @@ public class WorkflowController {
         }).orElse(Map.of("error", "not_found"));
     }
 
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
+
     @PostMapping("/executions/{execId}/interact")
     public Map<String, Object> interact(
             @PathVariable String execId,
@@ -207,13 +209,92 @@ public class WorkflowController {
             if (!"waiting_input".equals(exec.getStatus())) {
                 return Map.<String, Object>of("status", "error", "message", "工作流当前不在等待输入状态");
             }
-            exec.setStatus("running");
-            exec.setPendingInteraction(null);
-            String ctx = exec.getContextJson() != null ? exec.getContextJson() : "{}";
-            exec.setContextJson(ctx.replace("}", ", \"userResponse\": \"" + userResponse.replace("\"", "'") + "\"}"));
-            exec.setLastHeartbeatAt(LocalDateTime.now());
-            exec.setNextHeartbeatAt(LocalDateTime.now().plusSeconds(5));
-            execRepo.save(exec);
+
+            try {
+                Map<String, Object> context = JSON_MAPPER.readValue(
+                    exec.getContextJson() != null ? exec.getContextJson() : "{}",
+                    new TypeReference<>() {});
+
+                Map<String, Object> pending = exec.getPendingInteraction() != null
+                    ? JSON_MAPPER.readValue(exec.getPendingInteraction(), new TypeReference<>() {})
+                    : Map.of();
+
+                String nodeType = (String) pending.getOrDefault("node_type", "condition");
+                String nodeId = (String) pending.getOrDefault("node_id", exec.getCurrentNodeId());
+
+                Map<String, Object> nodeCtx = context.containsKey(nodeId)
+                    ? new HashMap<>((Map<String, Object>) context.get(nodeId))
+                    : new HashMap<>();
+
+                nodeCtx.put("userResponse", userResponse);
+                nodeCtx.put("respondedAt", LocalDateTime.now().toString());
+
+                switch (nodeType) {
+                    case "approval":
+                        boolean approved = "approved".equalsIgnoreCase(userResponse)
+                            || userResponse.contains("通过") || userResponse.contains("批准");
+                        nodeCtx.put("type", "approval");
+                        nodeCtx.put("decision", approved ? "approved" : "rejected");
+                        nodeCtx.put("comment", userResponse);
+                        break;
+                    case "human_task":
+                        nodeCtx.put("type", "human_task");
+                        nodeCtx.put("status", "done");
+                        nodeCtx.put("result", userResponse);
+                        break;
+                    case "condition":
+                    default:
+                        nodeCtx.put("type", nodeType);
+                        nodeCtx.put("selectedOption", userResponse);
+                        break;
+                }
+                nodeCtx.put("completedAt", LocalDateTime.now().toString());
+                context.put(nodeId, nodeCtx);
+
+                // Mark current node as completed
+                List<String> completedNodes = JSON_MAPPER.readValue(
+                    exec.getCompletedNodesJson() != null ? exec.getCompletedNodesJson() : "[]",
+                    new TypeReference<>() {});
+                if (!completedNodes.contains(nodeId)) {
+                    completedNodes.add(nodeId);
+                }
+
+                // Find next node from edges
+                List<Map<String, Object>> edges = JSON_MAPPER.readValue(
+                    workflowRepo.findById(exec.getWorkflowId())
+                        .map(wf -> wf.getEdgesJson() != null ? wf.getEdgesJson() : "[]")
+                        .orElse("[]"),
+                    new TypeReference<>() {});
+
+                String nextNodeId = null;
+                for (Map<String, Object> edge : edges) {
+                    if (nodeId.equals(edge.get("from")) && !completedNodes.contains(edge.get("to"))) {
+                        nextNodeId = (String) edge.get("to");
+                        break;
+                    }
+                }
+
+                exec.setCompletedNodesJson(JSON_MAPPER.writeValueAsString(completedNodes));
+                exec.setContextJson(JSON_MAPPER.writeValueAsString(context));
+
+                if (nextNodeId != null) {
+                    exec.setCurrentNodeId(nextNodeId);
+                    exec.setStatus("running");
+                } else {
+                    exec.setStatus("completed");
+                }
+                exec.setPendingInteraction(null);
+                exec.setLastHeartbeatAt(LocalDateTime.now());
+                exec.setNextHeartbeatAt(LocalDateTime.now().plusSeconds(5));
+                execRepo.save(exec);
+
+            } catch (Exception e) {
+                exec.setStatus("running");
+                exec.setPendingInteraction(null);
+                exec.setLastHeartbeatAt(LocalDateTime.now());
+                exec.setNextHeartbeatAt(LocalDateTime.now().plusSeconds(5));
+                execRepo.save(exec);
+            }
 
             return Map.<String, Object>of("status", "ok", "execution", exec.toMap());
         }).orElse(Map.of("status", "error", "message", "execution not found"));

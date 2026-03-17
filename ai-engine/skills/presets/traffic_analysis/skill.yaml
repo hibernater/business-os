@@ -1,0 +1,52 @@
+skill_id: traffic_analysis
+skill_type: atomic
+name: 流量分析
+description: >
+  分析店铺流量来源、访客行为、跳失率、转化漏斗，
+  帮你找到流量问题和优化方向。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "trending-up"
+usage_count: 520
+
+trigger_phrases:
+  - 流量分析
+  - 访客分析
+  - 跳失率
+  - 转化漏斗
+  - 流量来源
+  - 为什么没转化
+
+twin_dimensions:
+  - dimension: operation
+    extract_keys: [traffic_sources, bounce_rate, conversion_funnel, top_pages]
+
+system_prompt: >
+  你是电商流量分析师。分析店铺流量数据，找出问题并给出优化建议。
+  如有企业资产数据可结合分析，否则用模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: period
+    text: "分析哪个时间段？"
+    options: ["最近7天", "最近30天", "本月"]
+    allow_free_input: false
+
+steps:
+  - step_id: analyze
+    name: 流量数据分析
+    description: 展示流量结构与漏斗
+    prompt_template: |
+      用户需求：{collected_info}
+      企业数据：{enterprise_assets}
+
+      请生成流量分析报告（可含模拟数据）：
+      1. 流量来源占比
+      2. 访客行为（跳失率、停留时长、浏览深度）
+      3. 转化漏斗
+      4. 问题诊断与优化建议
+    output_format: markdown
+
+output_template: |
+  📈 **流量分析** 已完成
+  可追问具体渠道或指标

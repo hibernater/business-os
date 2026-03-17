@@ -62,7 +62,7 @@ Workflow
 | `notification` | 发送通知 | 否（即时继续） | `channel`, `message_template`, `recipients` |
 | `wait` | 定时等待 | 是（等时间到） | `wait_type`, `duration_minutes` / `until_time`, `reason` |
 | `api_call` | 调用外部 API | 否 | `method`, `url`, `headers`, `body`, `timeout` |
-| `sub_workflow` | 触发子工作流 | 否（占位） | `workflow_id` |
+| `sub_workflow` | 触发子工作流并跟踪 | 是（等子流程完成） | `workflow_id` |
 | `loop` | 循环迭代 | 否（多次心跳） | `items`, `loop_var` |
 
 **边（Edge）**：
@@ -210,12 +210,14 @@ Executor 遇到需要决策的节点
 
 ## 五、前端实现
 
-### 5.1 工作流页面（workflow-panel.tsx）
+### 5.1 工作流页面（workflow-panel.tsx + workflow-builder.tsx）
 
-三个子视图：
-- **列表**：所有工作流卡片，显示状态、Skill 数量、触发方式
-- **创建**：对话式界面，用户描述业务流程 → AI 拆解 → 预览流程图 → 确认保存
-- **详情**：工作流定义 + 执行历史 + 实时执行状态 + 交互面板
+五个子视图：
+- **列表**：所有工作流卡片（NODE_STYLE 彩色配色），显示节点类型图标、状态、触发方式
+- **AI 创建**：对话式界面，用户描述业务流程 → AI 拆解 → 预览流程图 → 确认保存
+- **可视化构建**：节点面板（按 AI 能力/人工协作/外部集成/控制逻辑 分类）+ 点击添加节点 + 右侧配置面板 + 节点排序/删除
+- **编辑**：打开已有工作流进入可视化编辑器，修改后更新保存
+- **详情**：工作流定义 + 实时执行状态 + 类型专属交互面板（审批→批准/驳回按钮、人工任务→完成按钮、条件→选项按钮）
 
 ### 5.2 任务管理面板（task-panel.tsx）
 
@@ -294,7 +296,11 @@ start → 客户数据分析 → 客户分群 → condition(有高价值新客?)
 | **Phase 2** | 对话式工作流创建 + AI 拆解 | ✅ 已完成 |
 | **Phase 3** | 有状态工作流执行 + 心跳 + 用户交互 | ✅ 已完成 |
 | **Phase 4** | 任务管理按数字孪生维度 + 来源分类 | ✅ 已完成 |
-| **Phase 5** | 工作流节点类型扩展（human_task/approval/notification/wait/api_call/loop） | ✅ 已完成 |
-| **Phase 6** | 可视化工作流编辑器（拖拽节点） | 🔜 计划中 |
-| **Phase 7** | 事件驱动触发（webhook / 数据变更） | 🔜 计划中 |
-| **Phase 8** | 工作流市场（企业间共享模板） | 🔜 计划中 |
+| **Phase 5** | 工作流节点类型扩展（9 种：skill/condition/human_task/approval/notification/wait/api_call/sub_workflow/loop） | ✅ 已完成 |
+| **Phase 6** | 可视化工作流编辑器（节点面板 + 配置 + 编辑已有工作流） | ✅ 已完成 |
+| **Phase 7** | 类型专属交互面板（审批→批准/驳回、人工→完成标记） | ✅ 已完成 |
+| **Phase 8** | 子工作流真实触发与状态跟踪 | ✅ 已完成 |
+| **Phase 9** | Java 后端交互响应增强（JSON 解析、节点完成推进） | ✅ 已完成 |
+| **Phase 10** | 事件驱动触发（webhook / 数据变更） | 🔜 计划中 |
+| **Phase 11** | 工作流市场（企业间共享模板） | 🔜 计划中 |
+| **Phase 12** | 拖拽式画布编辑器（React Flow 集成） | 🔜 计划中 |

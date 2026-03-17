@@ -1,148 +1,168 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
-  Package,
   Users,
   Cog,
-  Building2,
-  DollarSign,
   Loader2,
-  Play,
   ChevronRight,
+  ChevronDown,
   ArrowRight,
-  CheckCircle2,
   Sparkles,
   Zap,
   AlertCircle,
   CircleCheck,
   Send,
+  BarChart3,
+  Paperclip,
+  Link2,
+  X,
 } from "lucide-react";
 import {
   getToken,
   fetchDigitalTwin,
   fetchTasks,
-  createTask,
-  streamChat,
+  uploadFile,
   type DigitalTwinData,
   type DigitalTwinDimension,
   type TaskInfo,
 } from "@/lib/api";
+import { useChatStore } from "@/stores/chat-store";
 
-/* ── 五维度元信息 ─────────────────────────────── */
+/* ── 问候语 ───────────────────────────────────── */
 
-const DIMENSIONS = [
-  { key: "product", label: "商品", desc: "选品、定价、SKU", icon: Package, color: "blue" },
-  { key: "customer", label: "客户", desc: "画像、分群、复购", icon: Users, color: "emerald" },
-  { key: "operation", label: "运营", desc: "日报、转化、退款", icon: Cog, color: "violet" },
-  { key: "team", label: "团队", desc: "人员、考核、协作", icon: Building2, color: "amber" },
-  { key: "financial", label: "财务", desc: "营收、成本、利润", icon: DollarSign, color: "rose" },
-] as const;
-
-/* ── 维度 → Skill 映射 ───────────────────────── */
-
-const DIMENSION_SKILLS: Record<string, { skill_id: string; skill_name: string } | null> = {
-  product: { skill_id: "pricing_strategy", skill_name: "智能定价策略" },
-  customer: { skill_id: "customer_analysis", skill_name: "客户分群分析" },
-  operation: { skill_id: "daily_operations_report", skill_name: "每日经营日报" },
-  team: null,
-  financial: { skill_id: "pricing_strategy", skill_name: "智能定价策略" },
-};
-
-/* ── 颜色工具 ─────────────────────────────────── */
-
-const C: Record<string, { bg: string; text: string; bar: string }> = {
-  blue:    { bg: "bg-blue-100",    text: "text-blue-600",    bar: "bg-blue-500" },
-  emerald: { bg: "bg-emerald-100", text: "text-emerald-600", bar: "bg-emerald-500" },
-  violet:  { bg: "bg-violet-100",  text: "text-violet-600",  bar: "bg-violet-500" },
-  amber:   { bg: "bg-amber-100",   text: "text-amber-600",   bar: "bg-amber-500" },
-  rose:    { bg: "bg-rose-100",    text: "text-rose-600",    bar: "bg-rose-500" },
-};
-
-/* ── 维度业务洞察生成 ─────────────────────────── */
-
-interface Insight {
-  text: string;
-  actionLabel: string;
-  level: "empty" | "weak" | "growing" | "strong";
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "早上好";
+  if (h < 18) return "下午好";
+  return "晚上好";
 }
 
-function getInsight(key: string, dim: DigitalTwinDimension | undefined): Insight {
-  const pct = dim?.completeness ?? 0;
-  const s = (dim?.state ?? {}) as Record<string, unknown>;
-  const empty = pct === 0 || Object.keys(s).length === 0;
+/* ── 今日一眼：核心经营指标 ───────────────────── */
 
-  if (empty) {
-    const map: Record<string, string> = {
-      product:   "商品数据还是空的，AI 不了解你卖什么、怎么定价",
-      customer:  "客户画像为零，不知道谁在买、谁是高价值客户",
-      operation: "每天的经营数据没有被追踪，运营全凭感觉",
-      team:      "团队协作数据未录入",
-      financial: "财务状况不清晰，利润结构是个谜",
-    };
-    return { text: map[key] || "暂无数据", actionLabel: "去补全", level: "empty" };
+function TodayGlance({
+  dims,
+  onRunDaily,
+}: {
+  dims: Record<string, DigitalTwinDimension>;
+  onRunDaily: () => void;
+}) {
+  const op = (dims.operation?.state ?? {}) as Record<string, unknown>;
+  const dailyRevenue = op.daily_revenue as string | undefined;
+  const inquiryCount = op.inquiry_count as number | string | undefined;
+  const conversionRate = op.conversion_rate as string | undefined;
+  const hasData = dailyRevenue || inquiryCount || conversionRate;
+
+  const metrics = [
+    { label: "日营收", value: dailyRevenue ?? "—", sub: op.week_trend ? `周${op.week_trend}` : "" },
+    { label: "今日询盘", value: inquiryCount != null ? String(inquiryCount) : "—", sub: "" },
+    { label: "转化率", value: conversionRate ?? "—", sub: "" },
+  ];
+
+  if (!hasData) {
+    return (
+      <div className="mb-6">
+        <h2 className="mb-3 text-[14px] font-semibold text-gray-700">今日一眼</h2>
+        <div
+          onClick={onRunDaily}
+          className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/50 py-8 transition-colors hover:border-blue-300 hover:bg-blue-50"
+        >
+          <BarChart3 className="mb-2 h-10 w-10 text-blue-400" />
+          <p className="text-[14px] font-medium text-blue-700">暂无经营数据</p>
+          <p className="mt-1 text-[12px] text-blue-600">跑个经营日报，让 AI 帮你汇总</p>
+          <button className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-medium text-white hover:bg-blue-700">
+            去跑日报
+          </button>
+        </div>
+      </div>
+    );
   }
-
-  if (pct < 30) {
-    const map: Record<string, string> = {
-      product:   s.active_products ? `有 ${s.active_products} 个商品，但分析还很初步` : "商品数据刚开始积累",
-      customer:  s.total_customers ? `记录了 ${s.total_customers} 个客户，但还没做深度分析` : "客户数据刚起步",
-      operation: s.daily_revenue ? `日营收 ${s.daily_revenue}，但数据维度不够全` : "经营数据刚起步",
-      team:      s.team_size ? `团队 ${s.team_size} 人，协作数据很少` : "团队数据刚开始",
-      financial: s.overall_margin ? `毛利 ${s.overall_margin}，但还看不清完整成本结构` : "财务数据不完整",
-    };
-    return { text: map[key] || "数据较少", actionLabel: "去补全", level: "weak" };
-  }
-
-  if (pct < 70) {
-    const map: Record<string, string> = {
-      product: [s.active_products && `${s.active_products} 个在售`, s.top_seller && `爆款「${s.top_seller}」`].filter(Boolean).join("，") || "商品分析进行中",
-      customer: [s.vip_customers && `${s.vip_customers} 个 VIP`, s.repeat_purchase_rate && `复购率 ${s.repeat_purchase_rate}`].filter(Boolean).join("，") || "客户分析进行中",
-      operation: [s.daily_revenue && `日营收 ${s.daily_revenue}`, s.conversion_rate && `转化率 ${s.conversion_rate}`].filter(Boolean).join("，") || "运营数据积累中",
-      team: s.team_size ? `${s.team_size} 人团队，数据逐步完善中` : "团队数据积累中",
-      financial: [s.overall_margin && `综合毛利 ${s.overall_margin}`, s.monthly_cost && `月成本 ${s.monthly_cost}`].filter(Boolean).join("，") || "财务分析进行中",
-    };
-    return { text: map[key] || "持续积累中", actionLabel: "继续优化", level: "growing" };
-  }
-
-  const map: Record<string, string> = {
-    product: [s.active_products && `${s.active_products} 个商品全面掌握`, s.top_seller && `爆款「${s.top_seller}」`].filter(Boolean).join("，") || "商品维度数据丰富",
-    customer: [s.vip_customers && `${s.vip_customers} 个 VIP 已识别`, s.repeat_purchase_rate && `复购率 ${s.repeat_purchase_rate}`].filter(Boolean).join("，") || "客户画像清晰",
-    operation: [s.daily_revenue && `日营收 ${s.daily_revenue}`, s.conversion_rate && `转化率 ${s.conversion_rate}`].filter(Boolean).join("，") || "运营维度完善",
-    team: s.cs_satisfaction ? `客服满意度 ${s.cs_satisfaction}，团队运转良好` : "团队维度完善",
-    financial: s.overall_margin ? `综合毛利 ${s.overall_margin}，财务清晰可控` : "财务维度完善",
-  };
-  return { text: map[key] || "数据丰富", actionLabel: "持续优化", level: "strong" };
-}
-
-/* ── 健康度圆环 ───────────────────────────────── */
-
-function HealthRing({ value }: { value: number }) {
-  const r = 44;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (value / 100) * circ;
-  const stroke =
-    value >= 70 ? "#22c55e" : value >= 40 ? "#f59e0b" : value > 0 ? "#3b82f6" : "#d1d5db";
 
   return (
-    <div className="relative flex h-28 w-28 items-center justify-center">
-      <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r={r} fill="none" stroke="#f3f4f6" strokeWidth="8" />
-        <circle
-          cx="50" cy="50" r={r} fill="none" stroke={stroke} strokeWidth="8"
-          strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
-          className="transition-all duration-700"
-        />
-      </svg>
-      <div className="absolute flex flex-col items-center">
-        <span className="text-2xl font-bold text-gray-900">{value}</span>
-        <span className="text-[10px] text-gray-400">健康度</span>
+    <div className="mb-6">
+      <h2 className="mb-3 text-[14px] font-semibold text-gray-700">今日一眼</h2>
+      <div className="grid grid-cols-3 gap-3">
+        {metrics.map((m) => (
+          <div key={m.label} className="rounded-xl border border-gray-200 bg-white p-4 text-center">
+            <div className="text-[11px] text-gray-500">{m.label}</div>
+            <div className="mt-1 text-lg font-bold text-gray-900">{m.value}</div>
+            {m.sub && <div className="mt-0.5 text-[11px] text-emerald-600">{m.sub}</div>}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-/* ── AI 工作简报 ──────────────────────────────── */
+/* ── 需要关注：预警区块 ───────────────────────── */
+
+function AlertsSection({
+  dims,
+  onNavigate,
+}: {
+  dims: Record<string, DigitalTwinDimension>;
+  onNavigate: (v: string) => void;
+}) {
+  const product = (dims.product?.state ?? {}) as Record<string, unknown>;
+  const customer = (dims.customer?.state ?? {}) as Record<string, unknown>;
+  const alerts: { text: string; action: string; target: string }[] = [];
+
+  const qualityIssue = product.quality_issue as string | undefined;
+  if (qualityIssue) {
+    alerts.push({
+      text: `质量问题：${qualityIssue}`,
+      action: "分析退款",
+      target: "skills",
+    });
+  }
+
+  const refundRate = product.refund_rate as string | undefined;
+  if (refundRate && parseFloat(refundRate) >= 2) {
+    alerts.push({
+      text: `退款率 ${refundRate}，建议关注售后`,
+      action: "去分析",
+      target: "skills",
+    });
+  }
+
+  const atRisk = customer.at_risk as string | undefined;
+  if (atRisk) {
+    alerts.push({
+      text: `客户「${atRisk}」有流失风险，建议联系`,
+      action: "去处理",
+      target: "skills",
+    });
+  }
+
+  if (alerts.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <h2 className="mb-3 flex items-center gap-2 text-[14px] font-semibold text-amber-700">
+        <AlertCircle className="h-4 w-4" />
+        需要关注
+      </h2>
+      <div className="space-y-2">
+        {alerts.map((a, i) => (
+          <div
+            key={i}
+            className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3"
+          >
+            <p className="text-[13px] text-amber-800">{a.text}</p>
+            <button
+              onClick={() => onNavigate(a.target)}
+              className="shrink-0 text-[12px] font-medium text-amber-600 hover:text-amber-700"
+            >
+              {a.action} →
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── AI 工作台 ────────────────────────────────── */
 
 interface Brief {
   id: string;
@@ -197,10 +217,11 @@ function buildBriefs(tasks: TaskInfo[]): Brief[] {
     });
   }
 
-  if (todayDone.length === 1) {
+  if (todayDone.length === 1 && todayDone[0].outputSummary) {
+    const summary = todayDone[0].outputSummary.slice(0, 50);
     briefs.push({
       id: "done",
-      text: `「${todayDone[0].skillName}」已完成${todayDone[0].outputSummary ? `——${todayDone[0].outputSummary.slice(0, 40)}` : ""}`,
+      text: `「${todayDone[0].skillName}」已完成——${summary}${summary.length >= 50 ? "…" : ""}`,
       action: { label: "看结果", target: "tasks" },
       tone: "good",
     });
@@ -220,7 +241,7 @@ function buildBriefs(tasks: TaskInfo[]): Brief[] {
     if (daysSince >= 2) {
       briefs.push({
         id: "idle",
-        text: `已经 ${daysSince} 天没执行任务了，孪生数据可能在变旧`,
+        text: `已经 ${daysSince} 天没执行任务了，数据可能在变旧`,
         action: { label: "去执行", target: "skills" },
         tone: "hint",
       });
@@ -237,10 +258,66 @@ function buildBriefs(tasks: TaskInfo[]): Brief[] {
           ? "下午了，检查一下客户和运营数据？"
           : "今天辛苦了，让 AI 帮你做个复盘？",
       tone: "hint",
+      action: { label: "去试试", target: "skills" },
     });
   }
 
   return briefs.slice(0, 3);
+}
+
+interface Suggest { text: string; action: string; target: string }
+
+function buildSuggestions(
+  dims: Record<string, DigitalTwinDimension>,
+  tasks: TaskInfo[],
+): Suggest[] {
+  const sugg: Suggest[] = [];
+  const product = (dims.product?.state ?? {}) as Record<string, unknown>;
+  const customer = (dims.customer?.state ?? {}) as Record<string, unknown>;
+  const op = (dims.operation?.state ?? {}) as Record<string, unknown>;
+
+  if (product.quality_issue) {
+    sugg.push({ text: "有质量问题，建议分析退款与售后", action: "去分析", target: "skills" });
+  }
+  const refundRate = product.refund_rate as string | undefined;
+  if (refundRate && parseFloat(refundRate) >= 2) {
+    sugg.push({ text: "退款率偏高，建议关注售后数据", action: "去分析", target: "skills" });
+  }
+  if (customer.at_risk) {
+    sugg.push({ text: "有客户流失风险，建议执行客户分群", action: "去执行", target: "skills" });
+  }
+
+  const custPct = dims.customer?.completeness ?? 0;
+  if (custPct === 0 && !sugg.some((s) => s.text.includes("客户"))) {
+    sugg.push({ text: "客户数据未覆盖，建议跑客户分群或录入", action: "去执行", target: "skills" });
+  }
+  const opPct = dims.operation?.completeness ?? 0;
+  const hasOpData = op.daily_revenue || op.inquiry_count || op.conversion_rate;
+  if (opPct === 0 && !hasOpData && !sugg.some((s) => s.text.includes("日报"))) {
+    sugg.push({ text: "经营数据缺失，建议跑经营日报", action: "去执行", target: "skills" });
+  }
+
+  const running = tasks.filter((t) => t.status === "running");
+  const failed = tasks.filter((t) => t.status === "failed");
+  const lastCompleted = tasks.filter((t) => t.status === "completed").sort(
+    (a, b) => new Date(b.completedAt ?? 0).getTime() - new Date(a.completedAt ?? 0).getTime(),
+  )[0];
+  if (sugg.length === 0 && !running.length && !failed.length) {
+    const daysSince = lastCompleted
+      ? Math.floor((Date.now() - new Date(lastCompleted.completedAt ?? 0).getTime()) / 86400000)
+      : 7;
+    if (daysSince >= 2) {
+      sugg.push({ text: "数据可能变旧，建议跑经营日报", action: "去执行", target: "skills" });
+    } else {
+      const h = new Date().getHours();
+      sugg.push({
+        text: h < 12 ? "早上好，跑个经营日报？" : h < 18 ? "下午了，检查客户与运营数据？" : "今天辛苦，让 AI 帮你复盘？",
+        action: "去试试",
+        target: "skills",
+      });
+    }
+  }
+  return sugg.slice(0, 2);
 }
 
 const TONE_ICON: Record<Brief["tone"], React.ReactNode> = {
@@ -254,70 +331,201 @@ const CAPSULES = [
   { label: "跑个经营日报", icon: Cog, target: "skills" },
   { label: "分析客户数据", icon: Users, target: "skills" },
   { label: "创建工作流", icon: Sparkles, target: "workflows" },
+  { label: "查看任务", icon: BarChart3, target: "tasks" },
 ];
 
-function MyWorkSection({ tasks, onNavigate }: { tasks: TaskInfo[]; onNavigate: (v: string) => void }) {
-  const briefs = buildBriefs(tasks);
-  const [input, setInput] = useState("");
+/* ── AI 工作简报（内含建议执行）────────────────── */
 
-  const handleSubmit = () => {
+function AIBriefs({
+  tasks,
+  dims,
+  onNavigate,
+}: {
+  tasks: TaskInfo[];
+  dims: Record<string, DigitalTwinDimension>;
+  onNavigate: (v: string) => void;
+}) {
+  const briefs = buildBriefs(tasks);
+  const suggestions = buildSuggestions(dims, tasks);
+  return (
+    <div className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="space-y-1 px-4 pt-4 pb-4">
+        <div className="mb-2 flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500">
+            <Sparkles className="h-3 w-3 text-white" />
+          </div>
+          <span className="text-[12px] font-medium text-gray-400">AI 工作简报</span>
+        </div>
+        {briefs.map((b) => (
+          <p key={b.id} className="text-[13px] leading-relaxed text-gray-700">
+            {TONE_ICON[b.tone]}
+            {b.text}
+            {b.action && (
+              <button onClick={() => onNavigate(b.action!.target)} className="ml-1 text-blue-600 hover:underline">
+                {b.action.label} →
+              </button>
+            )}
+          </p>
+        ))}
+        {suggestions.length > 0 && (
+          <div className="mt-3 border-t border-gray-100 pt-3">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">建议执行</span>
+            <div className="mt-1.5 space-y-1">
+              {suggestions.map((s, i) => (
+                <div key={i} className="flex items-center justify-between rounded-lg bg-violet-50/80 px-3 py-2">
+                  <span className="text-[12px] text-gray-700">{s.text}</span>
+                  <button
+                    onClick={() => onNavigate(s.target)}
+                    className="shrink-0 text-[11px] font-medium text-violet-600 hover:text-violet-700"
+                  >
+                    {s.action} →
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── AI 对话框 + 任务创建引导 ───────────────────── */
+
+function AIDialogWithGuides({ onNavigate }: { onNavigate: (v: string) => void }) {
+  const [input, setInput] = useState("");
+  const [attachedFiles, setAttachedFiles] = useState<{ name: string; contentPreview?: string }[]>([]);
+  const [attachedLinks, setAttachedLinks] = useState<string[]>([]);
+  const [linkInput, setLinkInput] = useState("");
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    const token = getToken();
+    if (!token) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const res = await uploadFile(token, file, "document");
+        setAttachedFiles((prev) => [...prev, { name: file.name, contentPreview: res.contentPreview }]);
+      }
+    } catch { /* ignore */ }
+    setUploading(false);
+    e.target.value = "";
+  };
+
+  const addLink = () => {
+    const url = linkInput.trim();
+    if (!url) return;
+    const withProtocol = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    setAttachedLinks((prev) => [...prev, withProtocol]);
+    setLinkInput("");
+    setShowLinkInput(false);
+  };
+
+  const handleSubmitWithAttachments = () => {
     const text = input.trim();
-    if (!text) return;
+    const parts: string[] = [];
+    if (text) parts.push(text);
+    if (attachedFiles.length) {
+      parts.push(attachedFiles.map((f) => `[附件] ${f.name}${f.contentPreview ? `\n${f.contentPreview.slice(0, 500)}` : ""}`).join("\n\n"));
+    }
+    if (attachedLinks.length) {
+      parts.push("[参考链接]\n" + attachedLinks.join("\n"));
+    }
+    const fullContent = parts.join("\n\n");
+    if (!fullContent) return;
     setInput("");
+    setAttachedFiles([]);
+    setAttachedLinks([]);
+    useChatStore.getState().setPendingMessage(fullContent);
     onNavigate("chat");
   };
 
+  const hasContent = input.trim() || attachedFiles.length || attachedLinks.length;
+
   return (
-    <div className="mb-8">
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        {/* AI messages area */}
-        <div className="space-y-1 px-4 pt-4 pb-3">
-          <div className="mb-2 flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500">
-              <Sparkles className="h-3 w-3 text-white" />
-            </div>
-            <span className="text-[12px] font-medium text-gray-400">AI 助手</span>
-          </div>
-          {briefs.map((b) => (
-            <p key={b.id} className="text-[13px] leading-relaxed text-gray-700">
-              {TONE_ICON[b.tone]}
-              {b.text}
-              {b.action && (
-                <button
-                  onClick={() => onNavigate(b.action!.target)}
-                  className="ml-1 text-blue-600 hover:underline"
-                >
-                  {b.action.label} →
-                </button>
+    <div className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="px-4 py-4">
+          <div className="rounded-xl border border-gray-200 bg-gray-50/50 transition-colors focus-within:border-blue-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-400/20">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSubmitWithAttachments())}
+              placeholder="有什么想问的？支持粘贴链接、上传文件..."
+              rows={3}
+              className="w-full resize-none bg-transparent px-4 pt-3 pb-1 text-[15px] text-gray-800 placeholder:text-gray-400 outline-none"
+            />
+            <div className="flex flex-wrap items-center gap-2 px-3 pb-2">
+              {/* 附件/链接 chips */}
+              {attachedFiles.map((f, i) => (
+                <span key={`f-${i}`} className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[12px] text-blue-700">
+                  <Paperclip className="h-3 w-3" />
+                  {f.name}
+                  <button type="button" onClick={() => setAttachedFiles((p) => p.filter((_, j) => j !== i))} className="hover:text-blue-900">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              {attachedLinks.map((url, i) => (
+                <span key={`l-${i}`} className="inline-flex max-w-[200px] items-center gap-1 truncate rounded-lg bg-emerald-50 px-2 py-1 text-[12px] text-emerald-700">
+                  <Link2 className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{url.length > 35 ? url.slice(0, 35) + "…" : url}</span>
+                  <button type="button" onClick={() => setAttachedLinks((p) => p.filter((_, j) => j !== i))} className="shrink-0 hover:text-emerald-900">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              {showLinkInput && (
+                <span className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1">
+                  <input
+                    type="url"
+                    value={linkInput}
+                    onChange={(e) => setLinkInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addLink()}
+                    placeholder="粘贴链接"
+                    className="w-32 text-[12px] outline-none"
+                    autoFocus
+                  />
+                  <button type="button" onClick={addLink} className="text-blue-600 text-[12px]">添加</button>
+                  <button type="button" onClick={() => { setShowLinkInput(false); setLinkInput(""); }}><X className="h-3 w-3" /></button>
+                </span>
               )}
-            </p>
-          ))}
-        </div>
-
-        {/* Divider */}
-        <div className="mx-4 border-t border-gray-100" />
-
-        {/* Input bar */}
-        <div className="flex items-center gap-2 px-4 py-3">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            placeholder="描述你想解决的问题..."
-            className="flex-1 bg-transparent text-[14px] text-gray-800 outline-none placeholder:text-gray-300"
-          />
-          <button
-            onClick={handleSubmit}
-            disabled={!input.trim()}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400"
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Capsule suggestions */}
-        <div className="flex flex-wrap gap-2 px-4 pb-4">
+            </div>
+            <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+                  title="上传文件"
+                >
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                </button>
+                <input ref={fileInputRef} type="file" multiple accept=".csv,.xlsx,.xls,.txt,.md,.pdf,.jpg,.jpeg,.png,.gif" className="hidden" onChange={handleFileSelect} />
+                <button
+                  type="button"
+                  onClick={() => setShowLinkInput(true)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                  title="添加链接"
+                >
+                  <Link2 className="h-4 w-4" />
+                </button>
+              </div>
+              <button
+                onClick={handleSubmitWithAttachments}
+                disabled={!hasContent}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        <div className="mt-3 flex flex-wrap gap-2">
           {CAPSULES.map((c) => (
             <button
               key={c.label}
@@ -334,6 +542,71 @@ function MyWorkSection({ tasks, onNavigate }: { tasks: TaskInfo[]; onNavigate: (
   );
 }
 
+/* ── 企业数据覆盖（弱化、可折叠）────────────────── */
+
+const DIM_LABELS: Record<string, string> = {
+  product: "商品",
+  customer: "客户",
+  operation: "运营",
+  team: "团队",
+  financial: "财务",
+};
+
+function DataCoverage({
+  dims,
+  health,
+  onViewTwin,
+}: {
+  dims: Record<string, DigitalTwinDimension>;
+  health: number;
+  onViewTwin: () => void;
+}) {
+  const [collapsed, setCollapsed] = useState(true);
+  const keys = ["product", "customer", "operation", "team", "financial"];
+
+  return (
+    <div className="mb-6">
+      <button
+        onClick={() => setCollapsed((c) => !c)}
+        className="flex w-full items-center justify-between rounded-lg border border-gray-100 bg-gray-50/30 px-3 py-2 text-left transition-colors hover:bg-gray-50/50"
+      >
+        <span className="text-[12px] font-medium text-gray-400">企业数据覆盖</span>
+        <div className="flex items-center gap-1">
+          <span className="text-[11px] text-gray-400">
+            {keys.map((k) => `${DIM_LABELS[k]} ${dims[k]?.completeness ?? 0}%`).join(" · ")}
+          </span>
+          {collapsed ? (
+            <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+          )}
+        </div>
+      </button>
+      {!collapsed && (
+        <div className="mt-1.5 rounded-lg border border-gray-100 bg-gray-50/30 px-3 py-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            {keys.map((k) => {
+              const pct = dims[k]?.completeness ?? 0;
+              return (
+                <span key={k} className="text-[11px] text-gray-500">
+                  {DIM_LABELS[k]} <span className="font-medium text-gray-600">{pct}%</span>
+                </span>
+              );
+            })}
+            <span className="ml-auto text-[11px] text-gray-400">健康度 {health}</span>
+          </div>
+          <button
+            onClick={onViewTwin}
+            className="mt-2 text-[11px] text-blue-500 hover:text-blue-600"
+          >
+            查看完整孪生 <ArrowRight className="inline h-3 w-3" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── 主组件 ───────────────────────────────────── */
 
 interface HomePanelProps {
@@ -344,8 +617,6 @@ export function HomePanel({ onNavigate }: HomePanelProps) {
   const [twin, setTwin] = useState<DigitalTwinData | null>(null);
   const [tasks, setTasks] = useState<TaskInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [runningSkill, setRunningSkill] = useState<string | null>(null);
-  const [completedSkills, setCompletedSkills] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const token = getToken();
@@ -355,27 +626,12 @@ export function HomePanel({ onNavigate }: HomePanelProps) {
       fetchDigitalTwin(token).catch(() => null),
       fetchTasks(token).then((r) => r.tasks ?? []).catch(() => [] as TaskInfo[]),
     ])
-      .then(([t, tk]) => { setTwin(t); setTasks(tk); })
+      .then(([t, tk]) => {
+        setTwin(t);
+        setTasks(tk);
+      })
       .finally(() => setLoading(false));
   }, []);
-
-  const handleRunSkill = async (skillId: string, skillName: string) => {
-    const token = getToken();
-    if (!token || runningSkill) return;
-    setRunningSkill(skillId);
-    try {
-      const result = await createTask(token, {
-        skillId, skillName, triggerType: "manual", totalSteps: 3,
-      });
-      if (result.status === "ok" && result.task?.id) {
-        setCompletedSkills((prev) => new Set(prev).add(skillId));
-        streamChat(skillName, null, token, {
-          autoExecute: true, taskId: result.task.id,
-        }).catch(() => {});
-      }
-    } catch { /* ignore */ }
-    setRunningSkill(null);
-  };
 
   if (loading) {
     return (
@@ -387,201 +643,49 @@ export function HomePanel({ onNavigate }: HomePanelProps) {
 
   const dims = twin?.dimensions ?? {};
   const health = twin?.health ?? 0;
-  const totalAssets = twin?.totalAssets ?? 0;
-  const totalExec = twin?.totalExecutions ?? 0;
-  const hasData = Object.values(dims).some((d) => Object.keys(d.state).length > 0);
 
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
-      <div className="mx-auto max-w-3xl px-6 py-10">
-
-        {/* ── 产品内核 + 健康度 ── */}
-        <div className="mb-10 flex flex-col items-center text-center">
-          <div className="mb-5 flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
-              <Zap className="h-4 w-4 text-white" />
+      <div className="mx-auto max-w-3xl px-6 py-8">
+        {/* 问候 + Logo */}
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-[20px] font-bold text-gray-900">{getGreeting()}</h1>
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600">
+              <Zap className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="text-lg font-bold text-gray-900">Business OS</span>
+            <span className="text-[14px] font-semibold text-gray-700">Business OS</span>
           </div>
-
-          <HealthRing value={health} />
-
-          <h1 className="mt-4 text-[22px] font-bold text-gray-900">
-            你的企业数字孪生
-          </h1>
-          <p className="mt-2 max-w-md text-[14px] leading-relaxed text-gray-400">
-            {hasData
-              ? `${totalAssets} 项资产 · ${totalExec} 次分析 · AI 正在理解你的生意`
-              : "让 AI 帮你看清生意全貌，找到每一个增长机会"}
-          </p>
         </div>
 
-        {/* ── 我的工作 ── */}
-        <MyWorkSection tasks={tasks} onNavigate={onNavigate} />
+        {/* 1. 今日一眼 */}
+        <TodayGlance dims={dims} onRunDaily={() => onNavigate("skills")} />
 
-        {/* ── 企业全景：五维度卡片 ── */}
-        <h2 className="mb-3 flex items-center gap-2 text-[14px] font-semibold text-gray-500">
-          企业全景
-        </h2>
-        <div className="space-y-3">
-          {DIMENSIONS.map(({ key, label, desc, icon: Icon, color }) => {
-            const dim = dims[key];
-            const pct = dim?.completeness ?? 0;
-            const { text, actionLabel, level } = getInsight(key, dim);
-            const skill = DIMENSION_SKILLS[key];
-            const colors = C[color];
-            const done = skill && completedSkills.has(skill.skill_id);
-            const spinning = skill && runningSkill === skill.skill_id;
+        {/* 2. AI 对话框（提前，首屏可见） */}
+        <AIDialogWithGuides onNavigate={onNavigate} />
 
-            return (
-              <div
-                key={key}
-                className="rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-gray-300"
-              >
-                <div className="flex items-start gap-4">
-                  {/* 图标 */}
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${colors.bg}`}>
-                    <Icon className={`h-5 w-5 ${colors.text}`} />
-                  </div>
+        {/* 3. AI 工作简报（内含建议执行） */}
+        <AIBriefs tasks={tasks} dims={dims} onNavigate={onNavigate} />
 
-                  {/* 内容 */}
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1.5 flex items-center gap-3">
-                      <span className="text-[15px] font-semibold text-gray-900">{label}</span>
-                      <span className="text-[11px] text-gray-400">{desc}</span>
-                      <span
-                        className={`ml-auto text-[13px] font-semibold ${
-                          pct >= 70
-                            ? "text-emerald-600"
-                            : pct >= 30
-                              ? colors.text
-                              : pct > 0
-                                ? "text-gray-400"
-                                : "text-gray-300"
-                        }`}
-                      >
-                        {pct}%
-                      </span>
-                    </div>
+        {/* 4. 需要关注 */}
+        <AlertsSection dims={dims} onNavigate={onNavigate} />
 
-                    {/* 进度条 */}
-                    <div className="mb-2.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                      <div
-                        className={`h-full rounded-full transition-all duration-700 ${
-                          pct >= 70 ? "bg-emerald-500" : pct > 0 ? colors.bar : "bg-gray-200"
-                        }`}
-                        style={{ width: `${Math.max(pct, 2)}%` }}
-                      />
-                    </div>
+        {/* 5. 企业数据覆盖（弱化、可折叠） */}
+        <DataCoverage dims={dims} health={health} onViewTwin={() => onNavigate("twin")} />
 
-                    {/* 洞察 */}
-                    <p
-                      className={`text-[13px] leading-relaxed ${
-                        level === "empty"
-                          ? "text-gray-400"
-                          : level === "weak"
-                            ? "text-gray-500"
-                            : "text-gray-600"
-                      }`}
-                    >
-                      {text}
-                    </p>
-                  </div>
-
-                  {/* 操作按钮 */}
-                  <div className="ml-2 shrink-0 self-center">
-                    {done ? (
-                      <span className="flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-2 text-[12px] font-medium text-emerald-600">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> 已执行
-                      </span>
-                    ) : skill ? (
-                      <button
-                        onClick={() => handleRunSkill(skill.skill_id, skill.skill_name)}
-                        disabled={!!runningSkill}
-                        className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-medium transition-colors disabled:opacity-50 ${
-                          level === "empty" || level === "weak"
-                            ? "bg-blue-600 text-white hover:bg-blue-700"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                        }`}
-                      >
-                        {spinning ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Play className="h-3 w-3" />
-                        )}
-                        {actionLabel}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => onNavigate("skills")}
-                        className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-2 text-[12px] text-gray-500 transition-colors hover:bg-gray-200"
-                      >
-                        去创建 <ChevronRight className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* ── 飞轮提示 ── */}
-        <div className="mt-8">
-          {!hasData ? (
-            <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-5">
-              <div className="flex items-start gap-3">
-                <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />
-                <div>
-                  <p className="mb-1.5 text-[14px] font-medium text-blue-800">
-                    从任意一个维度开始
-                  </p>
-                  <p className="text-[13px] leading-relaxed text-blue-600">
-                    点击「去补全」执行你的第一个 Skill。AI 会自动分析并把数据写入对应维度，你的数字孪生就开始成长了。
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] text-blue-500">
-                    <span className="rounded-full bg-blue-100 px-2.5 py-1">执行 Skill</span>
-                    <span>→</span>
-                    <span className="rounded-full bg-blue-100 px-2.5 py-1">沉淀数据</span>
-                    <span>→</span>
-                    <span className="rounded-full bg-blue-100 px-2.5 py-1">孪生成长</span>
-                    <span>→</span>
-                    <span className="rounded-full bg-blue-100 px-2.5 py-1">AI 更懂你</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center gap-3 text-[12px] text-gray-300">
-              <span className="h-px flex-1 bg-gray-100" />
-              <span className="flex items-center gap-1.5">
-                <Sparkles className="h-3 w-3" />
-                每次执行 Skill → 沉淀数据 → 孪生更完整 → AI 更懂你
-              </span>
-              <span className="h-px flex-1 bg-gray-100" />
-            </div>
-          )}
-        </div>
-
-        {/* ── 底部导航 ── */}
-        <div className="mt-6 flex items-center justify-center gap-5 text-[12px] text-gray-300">
-          <button
-            onClick={() => onNavigate("twin")}
-            className="flex items-center gap-1 transition-colors hover:text-gray-500"
-          >
-            查看完整孪生数据 <ArrowRight className="h-3 w-3" />
+        {/* 底部导航 */}
+        <div className="mt-4 flex items-center justify-center gap-6 text-[12px] text-gray-400">
+          <button onClick={() => onNavigate("twin")} className="hover:text-gray-600">
+            数字孪生
           </button>
-          <button
-            onClick={() => onNavigate("workflows")}
-            className="flex items-center gap-1 transition-colors hover:text-gray-500"
-          >
-            工作流 <ArrowRight className="h-3 w-3" />
+          <button onClick={() => onNavigate("workflows")} className="hover:text-gray-600">
+            工作流
           </button>
-          <button
-            onClick={() => onNavigate("skills")}
-            className="flex items-center gap-1 transition-colors hover:text-gray-500"
-          >
-            Skill 库 <ArrowRight className="h-3 w-3" />
+          <button onClick={() => onNavigate("skills")} className="hover:text-gray-600">
+            Skill 库
+          </button>
+          <button onClick={() => onNavigate("tasks")} className="hover:text-gray-600">
+            任务
           </button>
         </div>
       </div>

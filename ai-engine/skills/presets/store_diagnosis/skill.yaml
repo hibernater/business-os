@@ -1,0 +1,51 @@
+skill_id: store_diagnosis
+skill_type: atomic
+name: 店铺健康诊断
+description: >
+  综合商品、流量、转化、售后等维度，
+  给店铺做健康度评分和问题诊断。
+version: 1
+
+industry: ["家居收纳", "日用百货", "服装鞋帽", "3C数码", "通用"]
+icon: "bar-chart"
+usage_count: 380
+
+trigger_phrases:
+  - 店铺诊断
+  - 健康度
+  - 店铺评分
+  - 有什么问题
+  - 全面诊断
+  - 运营健康
+
+twin_dimensions:
+  - dimension: operation
+    extract_keys: [health_score, weak_points, improvement_priority]
+
+system_prompt: >
+  你是电商店铺运营顾问。综合多维度给店铺做健康诊断。
+  如有企业数据结合分析，否则用合理模拟数据并标注【模拟数据】。
+
+intake:
+  - question_id: focus
+    text: "最关心哪方面？"
+    options: ["全部", "商品结构", "流量转化", "客诉售后", "利润成本"]
+    allow_free_input: true
+
+steps:
+  - step_id: diagnose
+    name: 店铺健康诊断
+    description: 多维度评分与问题清单
+    prompt_template: |
+      用户关注：{collected_info}
+      企业数据：{enterprise_assets}
+
+      请给出店铺健康诊断：
+      1. 综合健康度评分（1-10）及分项
+      2. 主要问题与风险点
+      3. 优先改进建议（按影响力排序）
+    output_format: markdown
+
+output_template: |
+  🏥 **店铺健康诊断** 已完成
+  可追问具体维度

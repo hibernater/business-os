@@ -1,0 +1,45 @@
+skill_id: order_fulfillment_check
+skill_type: atomic
+name: 订单履约检查
+description: 检查待发货、超时未发、异常订单，生成履约清单。
+version: 1
+industry: ["通用"]
+icon: "package"
+usage_count: 650
+
+trigger_phrases:
+  - 待发货
+  - 订单履约
+  - 超时订单
+  - 履约检查
+
+twin_dimensions:
+  - dimension: operation
+    extract_keys: [pending_orders_count, overdue_count]
+
+system_prompt: 你是订单运营助手。检查待发货、超时、异常订单，生成履约清单。如无真实数据用模拟标注。
+
+intake:
+  - question_id: time_window
+    text: "检查哪个时间段？"
+    options: ["今天", "昨天", "最近3天", "最近7天", "全部待发"]
+
+steps:
+  - step_id: check
+    name: 履约检查
+    description: 汇总履约状态
+    prompt_template: |
+      用户需求：{collected_info}
+      企业数据：{enterprise_assets}
+      请生成履约清单（无真实数据用模拟）：待发数量金额、超时订单、异常订单、今日优先处理。
+    output_format: markdown
+
+  - step_id: action
+    name: 行动建议
+    description: 处理优先级
+    prompt_template: |
+      清单：{previous_results}
+      请给出：立即处理 Top 5、今日目标、可延后批次。
+    output_format: markdown
+
+capture_prompt: 履约检查完成，建议每日自动检查。

@@ -1,0 +1,46 @@
+skill_id: logistics_optimization
+skill_type: atomic
+name: 物流时效优化
+description: 分析发货时效、签收率、异常订单，给出时效和成本优化建议。
+version: 1
+industry: ["通用"]
+icon: "truck"
+usage_count: 420
+
+trigger_phrases:
+  - 物流优化
+  - 发货时效
+  - 物流异常
+  - 签收率
+
+twin_dimensions:
+  - dimension: operation
+    extract_keys: [avg_ship_time, delivery_rate]
+
+system_prompt: 你是物流运营专家。分析发货时效、签收率、异常订单，给出优化建议。如无真实数据用模拟标注。
+
+intake:
+  - question_id: scope
+    text: "分析范围？"
+    options: ["时效", "成本", "异常", "全部"]
+    allow_multiple: true
+
+steps:
+  - step_id: analyze
+    name: 物流分析
+    description: 分析物流指标
+    prompt_template: |
+      用户需求：{collected_info}
+      企业数据：{enterprise_assets}
+      请分析物流表现（无真实数据用模拟）：时效分布、签收率、异常统计、成本。
+    output_format: markdown
+
+  - step_id: suggest
+    name: 优化建议
+    description: 给出建议
+    prompt_template: |
+      分析：{previous_results}
+      请给出：时效提升空间、成本节约方向、优先 3 动作。
+    output_format: markdown
+
+capture_prompt: 物流分析完成。

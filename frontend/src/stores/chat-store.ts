@@ -76,9 +76,11 @@ interface ChatState {
   isStreaming: boolean;
   waitingForInput: boolean;
   error: string | null;
+  pendingMessage: string | null;
   sendMessage: (content: string) => Promise<void>;
   newConversation: () => void;
   setCurrentConversation: (id: string | null) => void;
+  setPendingMessage: (m: string | null) => void;
   clearError: () => void;
   exportCurrentAsMarkdown: () => string;
 }
@@ -135,6 +137,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isStreaming: false,
   waitingForInput: false,
   error: null,
+  pendingMessage: null,
 
   sendMessage: async (content: string) => {
     const token = getToken();
@@ -405,6 +408,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   newConversation: () => set({ currentConversationId: null, waitingForInput: false }),
   setCurrentConversation: (id: string | null) => set({ currentConversationId: id, waitingForInput: false }),
+  setPendingMessage: (m: string | null) => set({ pendingMessage: m }),
   clearError: () => set({ error: null }),
 
   exportCurrentAsMarkdown: () => {

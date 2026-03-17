@@ -1,0 +1,49 @@
+skill_id: tax_preparation
+skill_type: atomic
+name: 税务筹备提醒
+description: 提醒税种申报、开票、成本凭证等税务筹备事项，帮助合规经营。
+version: 1
+industry: ["通用"]
+icon: "receipt"
+usage_count: 340
+
+trigger_phrases:
+  - 税务筹备
+  - 报税提醒
+  - 开票
+  - 税务申报
+
+twin_dimensions:
+  - dimension: financial
+    extract_keys: [tax_deadlines, compliance_checklist]
+
+system_prompt: 你是税务顾问。提醒税种申报、开票、成本凭证等，仅做提醒不替代专业建议。如无真实数据用模拟标注。
+
+intake:
+  - question_id: entity_type
+    text: "主体类型？"
+    options: ["小规模", "一般纳税人", "个体户", "其他"]
+
+  - question_id: period
+    text: "关注时段？"
+    options: ["本月", "本季", "本年", "全部"]
+
+steps:
+  - step_id: checklist
+    name: 税务清单
+    description: 生成筹备清单
+    prompt_template: |
+      用户信息：{collected_info}
+      企业数据：{enterprise_assets}
+      请生成税务筹备清单（无真实数据用模拟）：申报截止、开票待办、凭证整理、合规检查。
+    output_format: markdown
+
+  - step_id: tips
+    name: 筹备建议
+    description: 给出建议
+    prompt_template: |
+      清单：{previous_results}
+      请给出：优先 3 件事、提前准备材料、需咨询专业的事项。
+    output_format: markdown
+
+capture_prompt: 税务筹备完成，建议申报期前自动提醒。

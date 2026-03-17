@@ -1,0 +1,67 @@
+skill_id: retention_campaign
+skill_type: atomic
+name: 流失挽回活动策划
+description: >
+  针对流失或即将流失的客户，策划召回活动方案，
+  包括优惠力度、触达渠道和话术建议。
+version: 1
+
+industry: ["通用"]
+icon: "users"
+usage_count: 380
+
+trigger_phrases:
+  - 流失挽回
+  - 召回活动
+  - 唤醒老客户
+  - 流失客户
+  - 客户召回
+  - 复购活动
+
+twin_dimensions:
+  - dimension: customer
+    extract_keys: [target_segment, expected_recovery_rate, campaign_budget]
+
+system_prompt: >
+  你是客户运营专家。针对流失客户策划召回活动，考虑优惠力度、触达渠道、话术。
+  方案要有可执行性，包含预算和预期效果。如无真实数据，用模拟数据标注【模拟数据】。
+
+intake:
+  - question_id: segment
+    text: "针对哪类流失客户？"
+    options: ["高价值流失", "普通流失", "长期沉默", "全部流失客群"]
+
+  - question_id: budget
+    text: "预算范围？"
+    options: ["低（满减/券）", "中（赠品/折扣）", "高（大额优惠）", "灵活"]
+
+steps:
+  - step_id: plan
+    name: 挽回方案设计
+    description: 设计召回活动方案
+    prompt_template: |
+      用户需求：{collected_info}
+      企业已有数据：{enterprise_assets}
+
+      请设计流失挽回方案（标注【模拟数据】如无真实数据）：
+      1. 目标客户画像和数量预估
+      2. 优惠策略（券/满减/赠品/专属价）
+      3. 触达渠道（短信/企微/push/邮件）
+      4. 话术模板（短文案 2-3 版）
+      5. 预算测算和预期转化
+    output_format: markdown
+
+  - step_id: timeline
+    name: 执行节奏
+    description: 给出活动执行节奏
+    prompt_template: |
+      挽回方案：{previous_results}
+
+      请给出执行节奏：
+      1. 预热期/爆发期/收尾期
+      2. 各阶段关键动作
+      3. 效果监控指标
+    output_format: markdown
+
+capture_prompt: >
+  挽回方案完成。可按客户分层设置不同召回策略。

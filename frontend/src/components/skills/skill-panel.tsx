@@ -28,17 +28,22 @@ import {
   X,
   Star,
   MessageCircle,
+  MessageSquare,
   Download,
+  AlertTriangle,
+  Calendar,
+  Truck,
+  ClipboardCheck,
+  Receipt,
+  GraduationCap,
+  TrendingUp,
 } from "lucide-react";
 import {
   fetchSkills,
-  fetchSkillRecommendations,
   getToken,
-  getAuthData,
   createTask,
   streamChat,
   type SkillInfo,
-  type SkillRecommendation,
   type QuickSetupQuestion,
 } from "@/lib/api";
 import { ExecutionHistory } from "./execution-history";
@@ -57,10 +62,18 @@ const ICON_MAP: Record<string, typeof Search> = {
   "bar-chart": BarChart3,
   star: Star,
   "message-circle": MessageCircle,
+  "message-square": MessageSquare,
   "file-text": FileText,
   zap: Zap,
   download: Download,
   package: Package,
+  "alert-triangle": AlertTriangle,
+  calendar: Calendar,
+  truck: Truck,
+  "clipboard-check": ClipboardCheck,
+  receipt: Receipt,
+  "graduation-cap": GraduationCap,
+  "trending-up": TrendingUp,
 };
 
 function getSkillIcon(icon: string) {
@@ -68,14 +81,12 @@ function getSkillIcon(icon: string) {
 }
 
 interface SkillPanelProps {
-  onSwitchToChat: () => void;
   onSwitchToTasks?: () => void;
 }
 
-export function SkillPanel({ onSwitchToChat, onSwitchToTasks }: SkillPanelProps) {
+export function SkillPanel({ onSwitchToTasks }: SkillPanelProps) {
   const [subTab, setSubTab] = useState<SubTab>("skills");
   const [skills, setSkills] = useState<SkillInfo[]>([]);
-  const [recommendations, setRecommendations] = useState<SkillRecommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -85,21 +96,28 @@ export function SkillPanel({ onSwitchToChat, onSwitchToTasks }: SkillPanelProps)
   const [showDocUpload, setShowDocUpload] = useState(false);
   const [quickSetupFor, setQuickSetupFor] = useState<SkillInfo | null>(null);
   const [quickSetupAnswers, setQuickSetupAnswers] = useState<Record<string, string>>({});
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [page, setPage] = useState(1);
+
+  const PAGE_SIZE = 8;
+  const categories = ["全部", ...Array.from(new Set(skills.map((s) => s.category).filter(Boolean) as string[])).sort()];
+  const filteredSkills = categoryFilter ? skills.filter((s) => s.category === categoryFilter) : skills;
+  const totalPages = Math.max(1, Math.ceil(filteredSkills.length / PAGE_SIZE));
+  const paginatedSkills = filteredSkills.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [categoryFilter]);
 
   useEffect(() => {
     const token = getToken();
-    const auth = getAuthData();
     if (!token) return;
 
     setLoading(true);
     const loadAll = async () => {
       try {
-        const [skillList, recs] = await Promise.all([
-          fetchSkills(token),
-          auth?.enterpriseId ? fetchSkillRecommendations(token, auth.enterpriseId) : Promise.resolve([]),
-        ]);
+        const skillList = await fetchSkills(token);
         setSkills(skillList);
-        setRecommendations(recs);
       } catch (e) {
         setError(e instanceof Error ? e.message : "加载失败");
       } finally {
@@ -209,8 +227,8 @@ export function SkillPanel({ onSwitchToChat, onSwitchToTasks }: SkillPanelProps)
           <MarketplacePanel />
         ) : (
           <>
-            {/* 三种获取方式入口 */}
-            <div className="mb-5 grid grid-cols-3 gap-3">
+            {/* 两种获取 Skill 方式入口 */}
+            <div className="mb-5 grid grid-cols-2 gap-3">
               <EntryCard
                 icon={Wand2} color="indigo" label="引导创建"
                 desc="选场景，3 步生成"
@@ -221,65 +239,37 @@ export function SkillPanel({ onSwitchToChat, onSwitchToTasks }: SkillPanelProps)
                 desc="传文件，AI 分析"
                 onClick={() => setShowDocUpload(true)}
               />
-              <EntryCard
-                icon={Zap} color="amber" label="对话创建"
-                desc="描述工作流，AI 生成"
-                onClick={onSwitchToChat}
-              />
             </div>
-
-            {/* 智能推荐 */}
-            {recommendations.length > 0 && (
-              <div className="mb-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  <h2 className="text-[14px] font-semibold text-gray-900">为你推荐</h2>
-                  <span className="text-[12px] text-gray-400">基于你的企业资产分析</span>
-                </div>
-                <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(recommendations.length, 3)}, 1fr)` }}>
-                  {recommendations.map((rec) => {
-                    const Icon = getSkillIcon(rec.icon);
-                    return (
-                      <div key={rec.skill_id}
-                        className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4 hover:shadow-sm transition-shadow"
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100">
-                            <Icon className="h-4 w-4 text-amber-600" />
-                          </div>
-                          <h3 className="text-[13px] font-semibold text-gray-900">{rec.name}</h3>
-                        </div>
-                        <p className="text-[12px] text-amber-700 leading-relaxed mb-3">{rec.reason}</p>
-                        <button
-                          onClick={() => {
-                            const matched = skills.find(s => s.skill_id === rec.skill_id);
-                            if (matched && matched.quick_setup?.length > 0) {
-                              setQuickSetupFor(matched);
-                            } else if (matched) {
-                              handleRunSkill(matched.skill_id, matched.name, matched.trigger_phrases[0] || matched.name, matched.step_count);
-                            }
-                          }}
-                          className="flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-[12px] text-white hover:bg-amber-600 transition-colors"
-                        >
-                          <Play className="h-3 w-3" /> 立即使用
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* 已安装 Skill 列表 */}
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-[14px] font-semibold text-gray-900">
                 已安装 Skill
-                <span className="ml-2 text-[12px] font-normal text-gray-400">{skills.length} 个</span>
+                <span className="ml-2 text-[12px] font-normal text-gray-400">{filteredSkills.length} 个</span>
               </h2>
             </div>
 
+            {/* 分类筛选 */}
+            {categories.length > 1 && (
+              <div className="mb-4 flex flex-wrap gap-1.5">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoryFilter(cat === "全部" ? "" : cat)}
+                    className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+                      (cat === "全部" && !categoryFilter) || categoryFilter === cat
+                        ? "bg-indigo-500 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-3">
-              {skills.map((skill) => {
+              {filteredSkills.length > 0 && paginatedSkills.map((skill) => {
                 const Icon = getSkillIcon(skill.icon);
                 const isCreating = creatingTaskFor === skill.skill_id;
                 const taskCreated = taskCreatedFor === skill.skill_id;
@@ -301,13 +291,14 @@ export function SkillPanel({ onSwitchToChat, onSwitchToTasks }: SkillPanelProps)
                           )}
                         </div>
                         <p className="mt-0.5 truncate text-[12px] text-gray-500">{skill.description}</p>
-                        {skill.industry?.length > 0 && (
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {skill.industry.filter(i => i !== "通用").slice(0, 3).map(i => (
-                              <span key={i} className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">{i}</span>
-                            ))}
-                          </div>
-                        )}
+                        <div className="mt-1 flex flex-wrap gap-1 items-center">
+                          {skill.category && (
+                            <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-600">{skill.category}</span>
+                          )}
+                          {skill.industry?.filter(i => i !== "通用").slice(0, 2).map(i => (
+                            <span key={i} className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">{i}</span>
+                          ))}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {taskCreated ? (
@@ -389,6 +380,29 @@ export function SkillPanel({ onSwitchToChat, onSwitchToTasks }: SkillPanelProps)
               })}
             </div>
 
+            {/* 分页 */}
+            {totalPages > 1 && (
+              <div className="mt-5 flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-[12px] text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  上一页
+                </button>
+                <span className="text-[12px] text-gray-500">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-[12px] text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  下一页
+                </button>
+              </div>
+            )}
+
             {skills.length === 0 && (
               <div className="rounded-xl border border-dashed border-gray-300 p-12 text-center">
                 <Package className="mx-auto mb-3 h-10 w-10 text-gray-300" />
@@ -396,6 +410,18 @@ export function SkillPanel({ onSwitchToChat, onSwitchToTasks }: SkillPanelProps)
                 <p className="mt-1 text-[12px] text-gray-400">
                   点击上方「引导创建」或「文档生成」快速获取你的第一个 Skill
                 </p>
+              </div>
+            )}
+
+            {skills.length > 0 && filteredSkills.length === 0 && (
+              <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center">
+                <p className="text-[13px] text-gray-500">该分类下暂无 Skill</p>
+                <button
+                  onClick={() => { setCategoryFilter(""); setPage(1); }}
+                  className="mt-2 text-[12px] text-indigo-600 hover:underline"
+                >
+                  查看全部
+                </button>
               </div>
             )}
 

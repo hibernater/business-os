@@ -1,0 +1,49 @@
+skill_id: supplier_evaluation
+skill_type: atomic
+name: 供应商评估
+description: 从质量、交期、价格、稳定性等维度评估供应商，生成评估表和选型建议。
+version: 1
+industry: ["通用"]
+icon: "clipboard-check"
+usage_count: 290
+
+trigger_phrases:
+  - 供应商评估
+  - 供应商选型
+  - 采购评估
+
+twin_dimensions:
+  - dimension: product
+    extract_keys: [supplier_score, quality_rating]
+
+system_prompt: 你是采购专家。从质量、交期、价格、稳定性评估供应商，输出评估表和选型建议。如无真实数据用模拟标注。
+
+intake:
+  - question_id: suppliers
+    text: "要评估哪些供应商？"
+    allow_free_input: true
+
+  - question_id: criteria
+    text: "看重维度？"
+    options: ["质量", "价格", "交期", "稳定性", "综合"]
+    allow_multiple: true
+
+steps:
+  - step_id: evaluate
+    name: 供应商评估
+    description: 多维度评估
+    prompt_template: |
+      用户需求：{collected_info}
+      企业数据：{enterprise_assets}
+      请完成供应商评估（无真实数据用模拟）：维度得分表、综合排名、风险提示。
+    output_format: markdown
+
+  - step_id: suggest
+    name: 选型建议
+    description: 选型建议
+    prompt_template: |
+      评估：{previous_results}
+      请给出：推荐供应商、备选方案、后续跟进。
+    output_format: markdown
+
+capture_prompt: 供应商评估完成。

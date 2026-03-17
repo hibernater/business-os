@@ -451,3 +451,4 @@ export function DigitalTwinPanel() {
     </div>
   );
 }
+

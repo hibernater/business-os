@@ -1,0 +1,50 @@
+skill_id: training_plan
+skill_type: atomic
+name: 培训计划生成
+description: 根据岗位和业务短板，生成培训计划大纲，覆盖客服、运营、仓储等。
+version: 1
+industry: ["通用"]
+icon: "graduation-cap"
+usage_count: 260
+
+trigger_phrases:
+  - 培训计划
+  - 客服培训
+  - 员工培训
+  - 培训大纲
+
+twin_dimensions:
+  - dimension: team
+    extract_keys: [training_topics, target_roles]
+
+system_prompt: 你是培训顾问。根据岗位和短板设计培训计划，覆盖客服运营仓储。计划要实用。如无真实数据用模拟标注。
+
+intake:
+  - question_id: role
+    text: "针对哪些岗位？"
+    options: ["客服", "运营", "仓储", "售前", "全部"]
+
+  - question_id: focus
+    text: "培训重点？"
+    options: ["新人入职", "技能提升", "服务规范", "产品知识", "综合"]
+    allow_multiple: true
+
+steps:
+  - step_id: outline
+    name: 培训大纲
+    description: 设计大纲
+    prompt_template: |
+      用户需求：{collected_info}
+      企业数据：{enterprise_assets}
+      请生成培训大纲（无真实数据用模拟）：主题岗位、模块内容时长形式、考核方式、建议排期。
+    output_format: markdown
+
+  - step_id: materials
+    name: 素材建议
+    description: 推荐素材
+    prompt_template: |
+      大纲：{previous_results}
+      请给出：材料类型、典型案例方向、实操建议。
+    output_format: markdown
+
+capture_prompt: 培训计划完成。

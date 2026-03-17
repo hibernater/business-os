@@ -1,0 +1,70 @@
+skill_id: channel_performance
+skill_type: atomic
+name: 渠道效果分析
+description: >
+  对比各销售渠道（淘天/拼多多/抖音/1688 等）的投入产出，
+  识别高效和低效渠道，给出预算分配建议。
+version: 1
+
+industry: ["通用"]
+icon: "trending-up"
+usage_count: 480
+
+trigger_phrases:
+  - 渠道效果
+  - 各平台对比
+  - 渠道分析
+  - 投入产出
+  - 平台ROI
+  - 渠道ROI
+
+twin_dimensions:
+  - dimension: operation
+    extract_keys: [channel_roi, best_channel, budget_recommendation]
+  - dimension: financial
+    extract_keys: [channel_cost, revenue_by_channel]
+
+system_prompt: >
+  你是电商渠道运营专家。对比各销售渠道的 GMV、成本、ROI，识别高效和低效渠道。
+  给出预算分配和投放建议。如无真实数据，用模拟数据标注【模拟数据】。
+
+intake:
+  - question_id: channels
+    text: "要分析哪些渠道？"
+    options: ["淘天", "拼多多", "抖音", "1688", "快手", "全部"]
+    allow_multiple: true
+
+  - question_id: metric
+    text: "最关注的指标？"
+    options: ["GMV", "ROI", "转化率", "客单价", "综合"]
+
+steps:
+  - step_id: compare
+    name: 渠道对比
+    description: 各渠道核心指标对比
+    prompt_template: |
+      用户需求：{collected_info}
+      企业已有数据：{enterprise_assets}
+
+      请进行渠道效果分析（标注【模拟数据】如无真实数据）：
+      1. 各渠道 GMV、订单量、客单价
+      2. 投入成本（推广/佣金/物流等）
+      3. ROI 和利润贡献
+      4. 转化率和流量质量
+    output_format: markdown
+
+  - step_id: recommend
+    name: 预算建议
+    description: 预算分配和投放建议
+    prompt_template: |
+      渠道分析：{previous_results}
+      用户关注：{collected_info}
+
+      请给出建议：
+      1. 高效/低效渠道分类
+      2. 预算分配建议（比例或优先级）
+      3. 可优化的投放方向
+    output_format: markdown
+
+capture_prompt: >
+  渠道分析完成。建议每月更新渠道效果对比。
